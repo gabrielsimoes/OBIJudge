@@ -1,0 +1,31 @@
+{{template "header.html" "Visão Geral"}}
+
+<div class="container">
+  {{template "sidebar.html" .}}
+
+  <div class="two-thirds column">
+    <div class="row">
+      <h2>{{.Title}}</h2>
+      <table class="u-full-width">
+        <thead>
+          <tr>
+            <th>Problema</th>
+            <th>Resultado da última submissão</th>
+            <th>Pontuação</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{range $task := .Tasks}}
+          <tr style="white-space:pre">
+            <td>{{$task.Title}}</td>
+            <td>{{with (index $.Scores $task.Name)}}{{.Text}}{{end}}</td>
+            <td>{{with (index $.Scores $task.Name)}}{{.Score}}{{end}}</td>
+          </tr>
+          {{end}}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{{template "footer.html"}}

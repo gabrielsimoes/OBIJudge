@@ -1,2 +1,9 @@
-# OBIJudge
-A local programming contest judge for preliminary tests for OBI (Brazilian OI). This is meant to provide contestants a way to test their solutions with preliminary test data.
+
+
+```bash
+```
+
+
+mathjax was cleaned with
+https://github.com/mathjax/MathJax-grunt-cleaner
+https://github.com/mathjax/MathJax-grunt-cleaner/issues/11

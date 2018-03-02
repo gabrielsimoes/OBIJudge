@@ -1,0 +1,58 @@
+{{template "header.html" .Task.Title}}
+
+<div class="container">
+  {{template "sidebar.html" .}}
+
+  <div class="two-thirds column">
+    <div class="row">
+      <h2>{{.Task.Title}}</h2>
+      {{if .HasHTML}}
+      {{.HTMLStatement}}
+      {{end}}
+
+      {{if .HasPDF}}
+      <div style="text-align: center">
+        <a href=/task/{{.Task.Name}}.pdf class="button">Baixar PDF</a>
+      </div>
+      {{end}}
+    </div>
+
+    <div class="row">
+      <h3>Enviar submissão</h3>
+      <form enctype="multipart/form-data" method="post" action="/task/{{.Task.Name}}">
+        <div class="row">
+          <label for="code">Código</label>
+          <textarea class="u-full-width" placeholder="Insira seu código aqui"
+            style="height: 350px;" id="code" name="code" class="code"></textarea>
+        </div>
+
+        <div class="row">
+          <div class="six columns">
+            <label for="file">Arquivo</label>
+            <input type="file" id="file" name="file">
+          </div>
+
+          <div class="three columns">
+            <label for="lang">Linguagem</label>
+            <select class="u-full-width" id="lang" name="lang" required>
+              <option value="cpp">C++</option>
+              <option value="c">C</option>
+              <option value="java">Java</option>
+              <option value="js">JavaScript</option>
+              <option value="pas">Pascal</option>
+              <option value="py2">Python 2</option>
+              <option value="py3">Python 3</option>
+            </select>
+          </div>
+
+          <div class="three columns">
+            <label for="submit">&nbsp;</label>
+            <input class="button-primary u-full-width" id="submit" type="submit" value="Enviar">
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{{template "footer.html"}}

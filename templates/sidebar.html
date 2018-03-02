@@ -1,0 +1,30 @@
+<div class="one-third column">
+  <div class="row" style="text-align:center">
+    {{template "logo.html"}}
+  </div>
+
+  <div class="row">
+    <a href="/overview" class="button u-full-width {{if eq .PageID "_overview"}}button-primary{{end}}">
+      Visão Geral
+    </a>
+    <form method="post" action="/logout">
+      <input class="button u-full-width" type="submit" name="logout" value="Logout" />
+    </form>
+  </div>
+
+  <div class="row">
+    <h4>Tarefas</h4>
+    {{range .Tasks}}
+    <a href="/task/{{.Name}}" class="button u-full-width {{if eq $.PageID .Name}}button-primary{{end}}">
+      {{.Title}}
+    </a>
+    {{end}}
+  </div>
+
+  <div class="row">
+    <h4>Documentação</h4>
+      {{range .Refs}}
+        <a class="button" href="/ref/{{.Name}}/{{.Index}}">{{.Title}}</a>
+      {{end}}
+  </div>
+</div>
