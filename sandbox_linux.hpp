@@ -14,14 +14,15 @@
 
 typedef enum { _32, _64, _UNKNOWN } Arch;
 typedef enum {
-  AC = 0,
-  WA = 1,
-  ML = 2,
-  TL = 3,
-  RE = 4,
-  CE = 5,
-  RV = 6,
-  ER = 7
+  NO = 0,
+  AC = 1,
+  WA = 2,
+  ML = 3,
+  TL = 4,
+  RE = 5,
+  CE = 6,
+  RV = 7,
+  ER = 8
 } Verdict;
 
 typedef struct {

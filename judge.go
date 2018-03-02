@@ -16,18 +16,21 @@ type Verdict struct {
 }
 
 const (
-	AC int = 0
-	WA int = 1
-	ML int = 2
-	TL int = 3
-	RE int = 4
-	CE int = 5
-	RV int = 6
-	ER int = 7
+	NO int = 0
+	AC int = 1
+	WA int = 2
+	ML int = 3
+	TL int = 4
+	RE int = 5
+	CE int = 6
+	RV int = 7
+	ER int = 8
 )
 
 func getCodeText(code int) string {
 	switch code {
+	case NO:
+		return "-"
 	case AC:
 		return "Resposta correta."
 	case WA:
@@ -140,34 +143,6 @@ func judge(task *TaskData, db *database, key []byte, code []byte, lang string) (
 		return Verdict{[]int{ER}, 0}, err
 	}
 
-	results := make([]int, len(tests))
-	for i, test := range tests {
-		err = writeNewFile(tmpdir+"/input", test.Input)
-		if err != nil {
-			return Verdict{[]int{ER}, 0}, err
-		}
-		err = writeNewFile(tmpdir+"/output", []byte{})
-		if err != nil {
-			return Verdict{[]int{ER}, 0}, err
-		}
-
-		results[i] = r.run(tmpdir, task.Name, task.TimeLimit, task.MemoryLimit)
-
-		if results[i] == AC {
-			answer, err := ioutil.ReadFile(tmpdir + "/output")
-			if err != nil {
-				return Verdict{[]int{ER}, 0}, err
-			}
-
-			// fmt.Println("Output: ", strip(string(test.Output)))
-			// fmt.Println("Answer: ", strip(string(answer)))
-
-			if strings.Compare(strip(string(answer)), strip(string(test.Output))) != 0 {
-				results[i] = WA
-			}
-		}
-	}
-
 	if len(task.Batches) == 0 {
 		tests := make([]int, task.NTests)
 		for i := 0; i < task.NTests; i++ {
@@ -176,20 +151,49 @@ func judge(task *TaskData, db *database, key []byte, code []byte, lang string) (
 		task.Batches = []BatchData{{100, tests}}
 	}
 
+	results := make([]int, len(tests))
 	ret := Verdict{make([]int, len(task.Batches)), 0}
-	for i, batch := range task.Batches {
+	for batchix, batch := range task.Batches {
 		var ok bool = true
 
-		for _, test := range batch.Tests {
-			if results[test] != AC {
+		for _, i := range batch.Tests {
+			test := tests[i]
+			if results[i] == NO {
+				err = writeNewFile(tmpdir+"/input", test.Input)
+				if err != nil {
+					return Verdict{[]int{ER}, 0}, err
+				}
+				err = writeNewFile(tmpdir+"/output", []byte{})
+				if err != nil {
+					return Verdict{[]int{ER}, 0}, err
+				}
+
+				results[i] = r.run(tmpdir, task.Name, task.TimeLimit, task.MemoryLimit)
+
+				if results[i] == AC {
+					answer, err := ioutil.ReadFile(tmpdir + "/output")
+					if err != nil {
+						return Verdict{[]int{ER}, 0}, err
+					}
+
+					// fmt.Println("Output: ", strip(string(test.Output)))
+					// fmt.Println("Answer: ", strip(string(answer)))
+
+					if strings.Compare(strip(string(answer)), strip(string(test.Output))) != 0 {
+						results[i] = WA
+					}
+				}
+			}
+
+			if results[i] != AC {
 				ok = false
-				ret.Result[i] = results[test]
+				ret.Result[batchix] = results[i]
 				break
 			}
 		}
 
 		if ok {
-			ret.Result[i] = AC
+			ret.Result[batchix] = AC
 			ret.Score += batch.Value
 		}
 	}
