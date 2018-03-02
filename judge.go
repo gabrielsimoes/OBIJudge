@@ -168,6 +168,14 @@ func judge(task *TaskData, db *database, key []byte, code []byte, lang string) (
 		}
 	}
 
+	if len(task.Batches) == 0 {
+		tests := make([]int, task.NTests)
+		for i := 0; i < task.NTests; i++ {
+			tests[i] = i
+		}
+		task.Batches = []BatchData{{100, tests}}
+	}
+
 	ret := Verdict{make([]int, len(task.Batches)), 0}
 	for i, batch := range task.Batches {
 		var ok bool = true

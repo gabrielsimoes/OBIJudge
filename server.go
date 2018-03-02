@@ -101,10 +101,6 @@ func (c *context) homeHandler(w http.ResponseWriter, r *http.Request) {
 		c.log.Printf(err.Error())
 	}
 
-	session.Values["password"] = "sZQmQao3FSlTMtTw"
-	session.Values["authenticated"] = true
-	session.Values["contest"] = "judge_test"
-
 	if auth, ok := session.Values["authenticated"]; !ok || !auth.(bool) {
 		contests, err := c.db.getContests()
 		if err != nil {
@@ -283,10 +279,6 @@ func (c *context) authWrapper(f func(*sessions.Session, http.ResponseWriter, *ht
 		if err != nil {
 			c.log.Printf(err.Error())
 		}
-
-		session.Values["password"] = "sZQmQao3FSlTMtTw"
-		session.Values["authenticated"] = true
-		session.Values["contest"] = "judge_test"
 
 		if auth, ok := session.Values["authenticated"]; !ok || !auth.(bool) {
 			http.Redirect(w, r, "/", http.StatusFound)

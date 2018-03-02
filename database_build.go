@@ -1,45 +1,30 @@
 package main
 
 import (
+	"archive/zip"
+	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
-	"path"
-	"strconv"
+	"path/filepath"
+	"strings"
 
-	"github.com/asdine/storm"
 	"golang.org/x/crypto/bcrypt"
-	yaml "gopkg.in/yaml.v2"
 )
 
 func buildDatabase(source, target string, password []byte) error {
-	// first, lets initialize our database
+	// first, lets initialize our zip database
 	_ = os.Remove(target)
-	db, err := storm.Open(target)
+	file, err := os.Create(target)
 	if err != nil {
 		return err
 	}
-	defer db.Close()
+	defer file.Close()
 
-	// parse contests.yml
-	contestsYaml, err := ioutil.ReadFile(path.Join(source, "contests.yml"))
-	if err != nil {
-		return err
-	}
-
-	var contests []ContestData
-	err = yaml.Unmarshal(contestsYaml, &contests)
-	if err != nil {
-		return err
-	}
-
-	for i, _ := range contests {
-		err = db.Save(&contests[i])
-		if err != nil {
-			return err
-		}
-	}
+	archive := zip.NewWriter(file)
+	defer archive.Close()
 
 	// choose password
 	if len(password) != 0 && len(password) != 16 {
@@ -60,115 +45,66 @@ func buildDatabase(source, target string, password []byte) error {
 		return err
 	}
 
-	db.Set(HASH_BUCKET, HASH_KEY, hash)
-
-	// load folders inside source (each should contain a task)
-	taskFolders, err := ioutil.ReadDir(source)
+	f, err := archive.Create("hash")
 	if err != nil {
 		return err
 	}
 
-	for _, taskFolder := range taskFolders {
-		if !taskFolder.IsDir() {
-			continue
-		}
+	_, err = f.Write(hash)
+	if err != nil {
+		return err
+	}
 
-		// get yaml task info from directory
-		taskYaml, err := ioutil.ReadFile(path.Join(source, taskFolder.Name(), "task.yml"))
+	err = filepath.Walk(source, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
-		// parse the yaml task info
-		var task TaskData
-		err = yaml.Unmarshal(taskYaml, &task)
+		header, err := zip.FileInfoHeader(info)
 		if err != nil {
 			return err
 		}
 
-		// build a full batch if none
-		if len(task.Batches) == 0 {
-			tests := make([]int, task.NTests)
-			for i := 0; i < task.NTests; i++ {
-				tests[i] = i
-			}
-			task.Batches = []BatchData{{100, tests}}
+		header.Name = strings.TrimPrefix(path, source)
+		if info.IsDir() {
+			header.Name += "/"
+		} else {
+			header.Method = zip.Deflate
 		}
 
-		statement := StatementData{}
-		statement.Name = task.Name
-
-		// store html statement
-		html, err := ioutil.ReadFile(path.Join(source, taskFolder.Name(), "statements", "statement.html"))
-		if err != nil { // we will only store if file exists
-			html = []byte{}
-		}
-		html = compress(html)
-		html, err = encrypt(html, password)
-		if err != nil {
-			return err
-		}
-		statement.HTML = html
-
-		// store pdf statement
-		pdf, err := ioutil.ReadFile(path.Join(source, taskFolder.Name(), "statements", "statement.pdf"))
-		if err != nil { // we will only store if file exists
-			pdf = []byte{}
-		}
-		pdf = compress(pdf)
-		pdf, err = encrypt(pdf, password)
-		if err != nil {
-			return err
-		}
-		statement.PDF = pdf
-
-		// store task info into database
-		err = db.Save(&task)
+		writer, err := archive.CreateHeader(header)
 		if err != nil {
 			return err
 		}
 
-		err = db.Save(&statement)
+		if info.IsDir() {
+			return nil
+		}
+
+		content, err := ioutil.ReadFile(path)
 		if err != nil {
 			return err
 		}
 
-		// we will keep task testcases in a specific bucket
-		taskBucket := db.From(task.Name)
-
-		// parse and store testcases
-		dir := path.Join(source, taskFolder.Name(), "tests")
-		for i := 0; i < task.NTests; i++ {
-			fmt.Println(taskFolder.Name(), i)
-
-			in, err := ioutil.ReadFile(path.Join(dir, strconv.Itoa(i)+".in"))
-			if err != nil {
-				return err
-			}
-
-			out, err := ioutil.ReadFile(path.Join(dir, strconv.Itoa(i)+".out"))
-			if err != nil {
-				return err
-			}
-
-			in = compress(in)
-			in, err = encrypt(in, password)
-			if err != nil {
-				return err
-			}
-
-			out = compress(out)
-			out, err = encrypt(out, password)
-			if err != nil {
-				return err
-			}
-
-			test := TestData{N: i, Input: in, Output: out}
-			err = taskBucket.Save(&test)
+		if filepath.Ext(path) != ".json" {
+			content = compress(content)
+			content, err = encrypt(content, password)
 			if err != nil {
 				return err
 			}
 		}
+
+		_, err = io.Copy(writer, bytes.NewReader(content))
+		if err != nil {
+			return err
+		}
+
+		fmt.Println(path)
+		return nil
+	})
+
+	if err != nil {
+		return err
 	}
 
 	return nil

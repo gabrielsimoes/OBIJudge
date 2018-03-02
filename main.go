@@ -30,7 +30,7 @@ func main() {
 				cli.StringFlag{
 					Name:  "database, d",
 					Usage: "Contests database file",
-					Value: "contests.db",
+					Value: "contests.zip",
 				},
 				cli.StringFlag{
 					Name:  "reference, r",
@@ -58,7 +58,7 @@ func main() {
 				cli.StringFlag{
 					Name:  "target, t",
 					Usage: "File where the database will be created (erases if already exists)",
-					Value: "contests.db",
+					Value: "contests.zip",
 				},
 				cli.StringFlag{
 					Name:  "pass, p",
