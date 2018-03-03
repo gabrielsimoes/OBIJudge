@@ -1,0 +1,9 @@
+[
+    {
+        "Name": "judge_test",
+        "Title": "Judge Test Contest",
+        "Tasks": [
+            "inout"
+        ]
+    }
+]

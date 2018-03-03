@@ -1,0 +1,19 @@
+[
+    {
+        "Name": "inout",
+        "Title": "In/Out",
+        "TimeLimit": 1000,
+        "MemoryLimit": 512,
+        "NTests": 2,
+        "Batches": [
+            {
+                "Value": 10,
+                "Tests": [ 0 ]
+            },
+            {
+                "Value": 90,
+                "Tests": [ 0, 1 ]
+            }
+        ]
+    }
+]

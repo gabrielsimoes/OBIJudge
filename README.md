@@ -2,6 +2,16 @@ mathjax was cleaned with
 https://github.com/mathjax/MathJax-grunt-cleaner
 https://github.com/mathjax/MathJax-grunt-cleaner/issues/11
 
+Para compilar (só no linux):
+`go get .`
+`go build .`
+
+Para criar um contest:
+`./OBIJudge builddb -h`
+
+Para rodar o servidor:
+`./OBIJudge run -h`
+
 # Windows Compiler/Interpreter Binaries:
 ## C/C++
 https://sourceforge.net/projects/mingw-w64/files/
