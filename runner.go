@@ -1,5 +1,7 @@
 package main
 
+//#include "syscalls_tab.h"
+import "C"
 import (
 	"bytes"
 	"fmt"
