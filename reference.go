@@ -15,7 +15,7 @@ type ReferenceData struct {
 	Index string `yaml:"index"`
 }
 
-func initReference(location string) ([]ReferenceData, *vfs.FileSystem, error) {
+func initReference(location string) ([]ReferenceData, vfs.FileSystem, error) {
 	rc, err := zip.OpenReader(location)
 	if err != nil {
 		return []ReferenceData{}, nil, err
@@ -33,5 +33,5 @@ func initReference(location string) ([]ReferenceData, *vfs.FileSystem, error) {
 		return []ReferenceData{}, nil, err
 	}
 
-	return reference, &fs, err
+	return reference, fs, err
 }

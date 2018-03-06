@@ -8,6 +8,20 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+
+	"github.com/nicksnyder/go-i18n/i18n"
+)
+
+const (
+	NO int = 0
+	AC int = 1
+	WA int = 2
+	TL int = 3
+	ML int = 4
+	RE int = 5
+	CE int = 6
+	RV int = 7
+	ER int = 8
 )
 
 type Verdict struct {
@@ -15,98 +29,24 @@ type Verdict struct {
 	Score  int
 }
 
-const (
-	NO int = 0
-	AC int = 1
-	WA int = 2
-	ML int = 3
-	TL int = 4
-	RE int = 5
-	CE int = 6
-	RV int = 7
-	ER int = 8
-)
-
-func getCodeText(code int) string {
-	switch code {
-	case NO:
-		return "-"
-	case AC:
-		return "Resposta correta."
-	case WA:
-		return "Resposta incorreta."
-	case ML:
-		return "Limite de memória excedido."
-	case TL:
-		return "Tempo limite excedido."
-	case RE:
-		return "Erro em tempo de execução."
-	case CE:
-		return "Erro de compilação."
-	case RV:
-		return "Violação de recursos permitidos."
-	case ER:
-		return "ERRO!"
-	default:
-		return "ERRO!"
-	}
-}
-
-func (v Verdict) Text() string {
+func (v Verdict) String(t i18n.TranslateFunc) string {
 	if len(v.Result) == 0 {
-		return "-"
+		return t("result_code_0")
 	} else if len(v.Result) == 1 {
-		return getCodeText(v.Result[0])
+		return t("result_code_" + strconv.Itoa(v.Result[0]))
 	} else {
 		var text string
 		for i, code := range v.Result {
 			if i > 0 {
 				text += "\n"
 			}
-			text += "Conjunto " + strconv.Itoa(i) + ": " + getCodeText(code)
+			text += t("result_batch") + " " + strconv.Itoa(i) + ": " + t("result_code_"+strconv.Itoa(code))
 		}
 		return text
 	}
 }
 
-func strip(in string) string {
-	white := false
-	var out string
-
-	for _, c := range in {
-		if unicode.IsSpace(c) {
-			if !white {
-				out = out + " "
-			}
-			white = true
-		} else {
-			out = out + string(c)
-			white = false
-		}
-	}
-
-	return out
-}
-
-func writeNewFile(path string, text []byte) error {
-	_ = os.Remove(path)
-
-	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0666)
-	if err != nil {
-		return err
-	}
-
-	_, err = file.Write(text)
-	if err != nil {
-		return err
-	}
-
-	err = file.Close()
-	if err != nil {
-		return err
-	}
-
-	return nil
+func push(task *TaskData, db *database, key []byte, code []byte, lang string) {
 }
 
 func judge(task *TaskData, db *database, key []byte, code []byte, lang string) (Verdict, error) {
@@ -199,4 +139,44 @@ func judge(task *TaskData, db *database, key []byte, code []byte, lang string) (
 	}
 
 	return ret, nil
+}
+
+func strip(in string) string {
+	white := false
+	var out string
+
+	for _, c := range in {
+		if unicode.IsSpace(c) {
+			if !white {
+				out = out + " "
+			}
+			white = true
+		} else {
+			out = out + string(c)
+			white = false
+		}
+	}
+
+	return out
+}
+
+func writeNewFile(path string, text []byte) error {
+	_ = os.Remove(path)
+
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0666)
+	if err != nil {
+		return err
+	}
+
+	_, err = file.Write(text)
+	if err != nil {
+		return err
+	}
+
+	err = file.Close()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

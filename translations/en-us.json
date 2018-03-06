@@ -1,0 +1,126 @@
+[
+	{
+		"id": "not_found",
+		"translation": "Page not found!"
+	},
+	{
+		"id": "go_to_home",
+		"translation": "Go to home"
+	},
+	{
+		"id": "login",
+		"translation": "Login"
+	},
+	{
+		"id": "invalid_password",
+		"translation": "Invalid password!"
+	},
+	{
+		"id": "password_placeholder",
+		"translation": "Password"
+	},
+	{
+		"id": "select_competition",
+		"translation": "Select the competition"
+	},
+	{
+		"id": "overview",
+		"translation": "Overview"
+	},
+	{
+		"id": "problem",
+		"translation": "Problem"
+	},
+	{
+		"id": "last_result",
+		"translation": "Last submission result"
+	},
+	{
+		"id": "score",
+		"translation": "Score"
+	},
+	{
+		"id": "logout",
+		"translation": "Logout"
+	},
+	{
+		"id": "tasks",
+		"translation": "Tasks"
+	},
+	{
+		"id": "documentation",
+		"translation": "Documentation"
+	},
+	{
+		"id": "settings",
+		"translation": "Settings"
+	},
+	{
+		"id": "configure_start",
+		"translation": "Configure contest beginning and duration"
+	},
+	{
+		"id": "download_pdf",
+		"translation": "Download PDF"
+	},
+	{
+		"id": "send_label",
+		"translation": "Submit"
+	},
+	{
+		"id": "code_label",
+		"translation": "Code"
+	},
+	{
+		"id": "insert_code",
+		"translation": "Insert code here"
+	},
+	{
+		"id": "file_label",
+		"translation": "File"
+	},
+	{
+		"id": "language_label",
+		"translation": "Language"
+	},
+	{
+		"id": "result_batch",
+		"translation": "Batch"
+	},
+	{
+		"id": "result_code_0",
+		"translation": "-"
+	},
+	{
+		"id": "result_code_1",
+		"translation": "Correct answer."
+	},
+	{
+		"id": "result_code_2",
+		"translation": "Wrong answer."
+	},
+	{
+		"id": "result_code_3",
+		"translation": "Time limit exceeded"
+	},
+	{
+		"id": "result_code_4",
+		"translation": "Memory limit exceeded."
+	},
+	{
+		"id": "result_code_5",
+		"translation": "Runtime error."
+	},
+	{
+		"id": "result_code_6",
+		"translation": "Compilation error."
+	},
+	{
+		"id": "result_code_7",
+		"translation": "Resource violation."
+	},
+	{
+		"id": "result_code_8",
+		"translation": "ERROR!"
+	}
+]

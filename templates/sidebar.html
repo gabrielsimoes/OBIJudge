@@ -5,15 +5,15 @@
 
   <div class="row">
     <a href="/overview" class="button u-full-width {{if eq .PageID "_overview"}}button-primary{{end}}">
-      Visão Geral
+      {{T "overview"}}
     </a>
     <form method="post" action="/logout">
-      <input class="button u-full-width" type="submit" name="logout" value="Logout" />
+      <input class="button u-full-width" type="submit" name="logout" value="{{T "logout"}}" />
     </form>
   </div>
 
   <div class="row">
-    <h4>Tarefas</h4>
+    <h4>{{T "tasks"}}</h4>
     {{range .Tasks}}
     <a href="/task/{{.Name}}" class="button u-full-width {{if eq $.PageID .Name}}button-primary{{end}}">
       {{.Title}}
@@ -22,7 +22,7 @@
   </div>
 
   <div class="row">
-    <h4>Documentação</h4>
+    <h4>{{T "documentation"}}</h4>
       {{range .Refs}}
         <a class="button" href="/ref/{{.Name}}/{{.Index}}">{{.Title}}</a>
       {{end}}

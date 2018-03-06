@@ -289,7 +289,7 @@ func buildDatabase(source, target string, password []byte) error {
 	if len(password) != 0 && len(password) != 16 {
 		return errors.New("Password has to be 16-letters long")
 	} else if len(password) == 0 {
-		password, err = generateAES16Key()
+		password, err = generateKey(16)
 
 		if err != nil {
 			return err
@@ -393,11 +393,11 @@ func decompress(data []byte) ([]byte, error) {
 	return b, nil
 }
 
-// Generates a 16-byte 128-bit AES alphanumeric key
-func generateAES16Key() ([]byte, error) {
+// Generate an alphanumeric key of specified size
+func generateKey(size int) ([]byte, error) {
 	const letters = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1"
 
-	key := make([]byte, 16)
+	key := make([]byte, size)
 	_, err := io.ReadFull(rand.Reader, key[:])
 	if err != nil {
 		return []byte{}, err

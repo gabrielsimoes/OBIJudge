@@ -1,0 +1,126 @@
+[
+	{
+		"id": "not_found",
+		"translation": "Página não encontrada!"
+	},
+	{
+		"id": "go_to_home",
+		"translation": "Ir para o início"
+	},
+	{
+		"id": "login",
+		"translation": "Login"
+	},
+	{
+		"id": "invalid_password",
+		"translation": "Senha inválida!"
+	},
+	{
+		"id": "password_placeholder",
+		"translation": "Senha"
+	},
+	{
+		"id": "select_competition",
+		"translation": "Selecione a competição"
+	},
+	{
+		"id": "overview",
+		"translation": "Visão Geral"
+	},
+	{
+		"id": "problem",
+		"translation": "Problema"
+	},
+	{
+		"id": "last_result",
+		"translation": "Resultado da última submissão"
+	},
+	{
+		"id": "score",
+		"translation": "Pontuação"
+	},
+	{
+		"id": "logout",
+		"translation": "Logout"
+	},
+	{
+		"id": "tasks",
+		"translation": "Tarefas"
+	},
+	{
+		"id": "documentation",
+		"translation": "Documentação"
+	},
+	{
+		"id": "settings",
+		"translation": "Configurações"
+	},
+	{
+		"id": "configure_start",
+		"translation": "Configure o início e duração do contest"
+	},
+	{
+		"id": "download_pdf",
+		"translation": "Baixar PDF"
+	},
+	{
+		"id": "send_label",
+		"translation": "Enviar"
+	},
+	{
+		"id": "code_label",
+		"translation": "Código"
+	},
+	{
+		"id": "insert_code",
+		"translation": "Insira seu código aqui"
+	},
+	{
+		"id": "file_label",
+		"translation": "Arquivo"
+	},
+	{
+		"id": "language_label",
+		"translation": "Linguagem"
+	},
+	{
+		"id": "result_batch",
+		"translation": "Conjunto"
+	},
+	{
+		"id": "result_code_0",
+		"translation": "-"
+	},
+	{
+		"id": "result_code_1",
+		"translation": "Resposta correta."
+	},
+	{
+		"id": "result_code_2",
+		"translation": "Resposta incorreta."
+	},
+	{
+		"id": "result_code_3",
+		"translation": "Tempo limite excedido."
+	},
+	{
+		"id": "result_code_4",
+		"translation": "Limite de memória excedido."
+	},
+	{
+		"id": "result_code_5",
+		"translation": "Erro em tempo de execução."
+	},
+	{
+		"id": "result_code_6",
+		"translation": "Erro de compilação."
+	},
+	{
+		"id": "result_code_7",
+		"translation": "Violação de recursos permitidos."
+	},
+	{
+		"id": "result_code_8",
+		"translation": "ERRO!"
+	}
+]

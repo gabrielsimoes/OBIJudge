@@ -12,28 +12,28 @@
 
       {{if .HasPDF}}
       <div style="text-align: center">
-        <a href=/task/{{.Task.Name}}.pdf class="button">Baixar PDF</a>
+        <a href=/task/{{.Task.Name}}.pdf class="button">{{T "download_pdf"}}</a>
       </div>
       {{end}}
     </div>
 
     <div class="row">
-      <h3>Enviar submissão</h3>
+      <h3>{{T "send_label"}}</h3>
       <form enctype="multipart/form-data" method="post" action="/task/{{.Task.Name}}">
         <div class="row">
-          <label for="code">Código</label>
-          <textarea class="u-full-width" placeholder="Insira seu código aqui"
+          <label for="code">{{T "code_label"}}</label>
+          <textarea class="u-full-width" placeholder="{{T "insert_code"}}"
             style="height: 350px;" id="code" name="code" class="code"></textarea>
         </div>
 
         <div class="row">
           <div class="six columns">
-            <label for="file">Arquivo</label>
+            <label for="file">{{T "file_label"}}</label>
             <input type="file" id="file" name="file">
           </div>
 
           <div class="three columns">
-            <label for="lang">Linguagem</label>
+            <label for="lang">{{T "language_label"}}</label>
             <select class="u-full-width" id="lang" name="lang" required>
               <option value="cpp">C++</option>
               <option value="c">C</option>
@@ -47,7 +47,7 @@
 
           <div class="three columns">
             <label for="submit">&nbsp;</label>
-            <input class="button-primary u-full-width" id="submit" type="submit" value="Enviar">
+            <input class="button-primary u-full-width" id="submit" type="submit" value="{{T "send_label"}}">
           </div>
         </div>
       </form>

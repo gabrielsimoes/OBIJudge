@@ -1,4 +1,4 @@
-{{template "header.html" "Configuração"}}
+{{template "header.html" T "settings"}}
 
 <div class="container"
      style="position: absolute;
@@ -8,7 +8,7 @@
                 -ms-transform: translateY(-50%) translateX(-50%);
                     transform: translateY(-50%) translateX(-50%);
             text-align:center;">
-  <h1>Configure o tempo e data de início do contest</h1>
+  <h1>{{T "configure_start"}}</h1>
   <form>
     <input id="datetime" type="datetime-local">
   </form>

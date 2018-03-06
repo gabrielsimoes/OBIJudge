@@ -1,4 +1,4 @@
-{{template "header.html" "Visão Geral"}}
+{{template "header.html" T "overview"}}
 
 <div class="container">
   {{template "sidebar.html" .}}
@@ -9,16 +9,16 @@
       <table class="u-full-width">
         <thead>
           <tr>
-            <th>Problema</th>
-            <th>Resultado da última submissão</th>
-            <th>Pontuação</th>
+            <th>{{T "problem"}}</th>
+            <th>{{T "last_result"}}</th>
+            <th>{{T "score"}}</th>
           </tr>
         </thead>
         <tbody>
           {{range $task := .Tasks}}
           <tr style="white-space:pre">
             <td>{{$task.Title}}</td>
-            <td>{{with (index $.Scores $task.Name)}}{{.Text}}{{end}}</td>
+            <td>{{with (index $.Scores $task.Name)}}{{.String $.T}}{{end}}</td>
             <td>{{with (index $.Scores $task.Name)}}{{.Score}}{{end}}</td>
           </tr>
           {{end}}

@@ -1,4 +1,4 @@
-{{template "header.html" "Login"}}
+{{template "header.html" T "login"}}
 
 <div class="container"
      style="position: absolute;
@@ -18,17 +18,17 @@
        margin-bottom: 15px;
        background: #f2dede;
        color: #b94a48;">
-    <p class="u-full-width">Senha inválida!</p>
+    <p class="u-full-width">{{T "invalid_password"}}</p>
   </div>
   {{end}}
 
   <form method="post" action="/login">
     <div class="row">
-      <input class="u-full-width" type="password" placeholder="Senha" name="password" required>
+      <input class="u-full-width" type="password" placeholder="{{T "password_placeholder"}}" name="password" required>
     </div>
     <div class="row">
       <select class="u-full-width" id="contest" name="contest" required>
-        <option value="" disabled selected hidden>Selecione a competição</option>
+        <option value="" disabled selected hidden>{{T "select_competition"}}</option>
         {{range .Contests}}
         <option value="{{.Name}}">{{.Title}}</option>
         {{end}}
