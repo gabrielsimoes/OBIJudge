@@ -1,144 +1,225 @@
 package main
 
 import (
-	"errors"
-	"io/ioutil"
+	"bytes"
+	"fmt"
 	"os"
-	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
-
-	"github.com/nicksnyder/go-i18n/i18n"
 )
 
 const (
-	NO int = 0
-	AC int = 1
-	WA int = 2
-	TL int = 3
-	ML int = 4
-	RE int = 5
-	CE int = 6
-	RV int = 7
-	ER int = 8
+	RESULT_NOTHING int = iota
+	RESULT_TIMEOUT
+	RESULT_SIGNAL
+	RESULT_FAILED
+	RESULT_CORRECT
+	RESULT_WRONG
 )
 
-type Verdict struct {
-	Result []int
+const (
+	RESULT_COMP_NOTHING int = iota
+	RESULT_COMP_TIMEOUT
+	RESULT_COMP_SIGNAL
+	RESULT_COMP_FAILED
+	RESULT_COMP_SUCCESS
+)
+
+const (
+	NUM_WORKERS = 2
+	ENV_HOME    = "HOME=/box"
+	ENV_PATH    = "PATH=/usr/bin:/usr/local/bin:/box"
+)
+
+var (
+	ENV         []string        = []string{ENV_HOME, ENV_PATH}
+	submissions chan submission = make(chan submission, 100)
+)
+
+type TaskVerdict struct {
+	Score       int
+	Batches     []BatchVerdict
+	Compilation int
+	Error       bool
+	Extra       string
+	When        time.Time
+	Code        string
+}
+
+type BatchVerdict struct {
+	Result int
 	Score  int
+	Time   time.Duration
+	Memory int64
+	Extra  string
 }
 
-func (v Verdict) String(t i18n.TranslateFunc) string {
-	if len(v.Result) == 0 {
-		return t("result_code_0")
-	} else if len(v.Result) == 1 {
-		return t("result_code_" + strconv.Itoa(v.Result[0]))
+type submission struct {
+	task *TaskData
+	db   *database
+	key  []byte
+	code []byte
+	lang language
+}
+
+func (s *submission) judge(boxId int) TaskVerdict {
+	box, err := Sandbox(boxId)
+	if err != nil {
+		return TaskVerdict{Error: true, Extra: err.Error()}
+	}
+	defer box.Clear()
+
+	err = s.lang.copyExtraFiles(box.BoxPath)
+	if err != nil {
+		return TaskVerdict{Error: true, Extra: err.Error()}
+	}
+
+	err = writeNewFile(filepath.Join(box.BoxPath, "box", s.task.Name+s.lang.sourceExtension()), s.code)
+	if err != nil {
+		return TaskVerdict{Error: true, Extra: err.Error()}
+	}
+
+	compilationCommand := s.lang.compilationCommand([]string{s.task.Name + s.lang.sourceExtension()}, s.task.Name)
+	var compilationOutput bytes.Buffer
+	compilationResult := box.Run(&BoxConfig{
+		Path:          compilationCommand[0],
+		Args:          compilationCommand,
+		Env:           ENV,
+		Stdout:        &compilationOutput,
+		Stderr:        &compilationOutput,
+		EnableCgroups: true,
+		MemoryLimit:   1 << 20, // 1GB
+		CPUTimeLimit:  2 * time.Minute,
+		WallTimeLimit: 2 * time.Minute,
+	})
+
+	var ret TaskVerdict
+
+	if compilationResult.Status == STATUS_ERR {
+		return TaskVerdict{Error: true, Extra: compilationResult.Error}
 	} else {
-		var text string
-		for i, code := range v.Result {
-			if i > 0 {
-				text += "\n"
-			}
-			text += t("result_batch") + " " + strconv.Itoa(i) + ": " + t("result_code_"+strconv.Itoa(code))
-		}
-		return text
-	}
-}
-
-func push(task *TaskData, db *database, key []byte, code []byte, lang string) {
-}
-
-func judge(task *TaskData, db *database, key []byte, code []byte, lang string) (Verdict, error) {
-	// load language runner
-	if _, ok := runnerRegistry[lang]; !ok {
-		err := errors.New("Language " + lang + " doesn't have a runner!")
-		return Verdict{[]int{ER}, 0}, err
-	}
-	r := runnerRegistry[lang]
-
-	// temporary directory and files
-	tmpdir, err := ioutil.TempDir("", "obijudge")
-	if err != nil {
-		return Verdict{[]int{ER}, 0}, err
-	}
-	defer os.RemoveAll(tmpdir)
-
-	err = writeNewFile(tmpdir+"/"+r.sourceName(task.Name), code)
-	if err != nil {
-		return Verdict{[]int{ER}, 0}, err
-	}
-
-	err = r.prepare(tmpdir, task.Name)
-	if err != nil {
-		if _, ok := err.(*exec.ExitError); ok {
-			return Verdict{[]int{CE}, 0}, nil
-		} else {
-			return Verdict{[]int{ER}, 0}, err
+		if compilationResult.Status == STATUS_WTL || compilationResult.Status == STATUS_CTL {
+			ret.Compilation = RESULT_COMP_TIMEOUT
+			return ret
+		} else if compilationResult.Status == STATUS_SIG {
+			ret.Compilation = RESULT_COMP_SIGNAL
+			ret.Extra = strconv.Itoa(int(compilationResult.Signal))
+			return ret
+		} else if compilationResult.Status == STATUS_EXT {
+			ret.Compilation = RESULT_COMP_FAILED
+			ret.Extra = strconv.Itoa(compilationResult.ExitCode) + "\n" + compilationOutput.String()
+			return ret
+		} else if compilationResult.Status == STATUS_OK {
+			ret.Compilation = RESULT_COMP_SUCCESS
 		}
 	}
 
-	tests, err := db.getTests(task.Name, key)
+	tests, err := s.db.getTests(s.task.Name, s.key)
 	if err != nil {
-		return Verdict{[]int{ER}, 0}, err
+		return TaskVerdict{Error: true, Extra: err.Error()}
 	}
 
-	if len(task.Batches) == 0 {
-		tests := make([]int, task.NTests)
-		for i := 0; i < task.NTests; i++ {
+	if len(s.task.Batches) == 0 {
+		tests := make([]int, s.task.NTests)
+		for i := 0; i < s.task.NTests; i++ {
 			tests[i] = i
 		}
-		task.Batches = []BatchData{{100, tests}}
+		s.task.Batches = []BatchData{{100, tests}}
 	}
 
-	results := make([]int, len(tests))
-	ret := Verdict{make([]int, len(task.Batches)), 0}
-	for batchix, batch := range task.Batches {
-		var ok bool = true
+	results := make([]struct {
+		code   int
+		extra  string
+		time   time.Duration
+		memory int64
+	}, len(tests))
+	ret.Batches = make([]BatchVerdict, len(s.task.Batches))
+
+	for batchNumber, batch := range s.task.Batches {
+		ret.Batches[batchNumber].Result = RESULT_CORRECT
 
 		for _, i := range batch.Tests {
 			test := tests[i]
-			if results[i] == NO {
-				err = writeNewFile(tmpdir+"/input", test.Input)
-				if err != nil {
-					return Verdict{[]int{ER}, 0}, err
-				}
-				err = writeNewFile(tmpdir+"/output", []byte{})
-				if err != nil {
-					return Verdict{[]int{ER}, 0}, err
-				}
+			if results[i].code == RESULT_NOTHING {
+				command := s.lang.evaluationCommand(s.task.Name, nil)
+				var output bytes.Buffer
+				result := box.Run(&BoxConfig{
+					Path:          command[0],
+					Args:          command,
+					Env:           ENV,
+					Stdin:         bytes.NewReader(test.Input),
+					Stdout:        &output,
+					EnableCgroups: true,
+					MemoryLimit:   int64(s.task.MemoryLimit),
+					CPUTimeLimit:  time.Duration(s.task.TimeLimit) * time.Millisecond,
+					WallTimeLimit: time.Duration(s.task.TimeLimit) * time.Millisecond,
+				})
 
-				results[i] = r.run(tmpdir, task.Name, task.TimeLimit, task.MemoryLimit)
+				if result.Status == STATUS_ERR {
+					return TaskVerdict{Error: true, Extra: result.Error}
+				} else {
+					results[i].time = result.CPUTime
+					results[i].memory = result.Memory
 
-				if results[i] == AC {
-					answer, err := ioutil.ReadFile(tmpdir + "/output")
-					if err != nil {
-						return Verdict{[]int{ER}, 0}, err
+					if result.Status == STATUS_WTL || result.Status == STATUS_CTL {
+						results[i].code = RESULT_TIMEOUT
+					} else if result.Status == STATUS_SIG {
+						results[i].code = RESULT_SIGNAL
+						results[i].extra = strconv.Itoa(int(result.Signal))
+					} else if result.Status == STATUS_EXT {
+						results[i].code = RESULT_FAILED
+						results[i].extra = strconv.Itoa(result.ExitCode)
+					} else if result.Status == STATUS_OK {
+						results[i].code = RESULT_CORRECT
 					}
+				}
 
-					// fmt.Println("Output: ", strip(string(test.Output)))
-					// fmt.Println("Answer: ", strip(string(answer)))
-
-					if strings.Compare(strip(string(answer)), strip(string(test.Output))) != 0 {
-						results[i] = WA
+				if results[i].code == RESULT_CORRECT {
+					if strings.Compare(strip(output.String()), strip(string(test.Output))) != 0 {
+						results[i].code = RESULT_WRONG
 					}
 				}
 			}
 
-			if results[i] != AC {
-				ok = false
-				ret.Result[batchix] = results[i]
+			if results[i].time > ret.Batches[batchNumber].Time {
+				ret.Batches[batchNumber].Time = results[i].time
+			}
+
+			if results[i].memory > ret.Batches[batchNumber].Memory {
+				ret.Batches[batchNumber].Memory = results[i].memory
+			}
+
+			if results[i].code != RESULT_CORRECT {
+				ret.Batches[batchNumber].Result = results[i].code
+				ret.Batches[batchNumber].Extra = results[i].extra
 				break
 			}
 		}
 
-		if ok {
-			ret.Result[batchix] = AC
+		if ret.Batches[batchNumber].Result == RESULT_CORRECT {
+			ret.Batches[batchNumber].Score = batch.Value
 			ret.Score += batch.Value
 		}
 	}
 
-	return ret, nil
+	return ret
+}
+
+func runJudge() {
+	for id := 0; id < NUM_WORKERS; id++ {
+		go func(id int) {
+			for s := range submissions {
+				when := time.Now()
+				verdict := s.judge(id)
+				verdict.When = when
+				verdict.Code = string(s.code)
+				fmt.Printf("%+v\n", verdict)
+			}
+		}(id)
+	}
 }
 
 func strip(in string) string {

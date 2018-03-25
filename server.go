@@ -24,22 +24,26 @@ type context struct {
 	db        *database
 	templates *template.Template
 	reference []ReferenceData
-	store     *sessions.CookieStore
+	store     *sessions.FilesystemStore
 	sessionid string
 	log       *log.Logger
 }
 
 // keeps last submissions' scores
-type scoremap map[string]Verdict
+type scoremap map[string]TaskVerdict
+
+func init() {
+	// add scoremap to be used in gorilla/sessions
+	gob.Register(scoremap{})
+}
 
 // template renderer
 func (c *context) render(w http.ResponseWriter, r *http.Request,
 	template string, data map[string]interface{}) {
-	cookieLang, _ := r.Cookie("lang")
 	acceptLang := r.Header.Get("Accept-Language")
 	// TODO: handle default language configuration
 	defaultLang := "en-US"
-	T, err := i18n.Tfunc(cookieLang.String(), acceptLang, defaultLang)
+	T, err := i18n.Tfunc(acceptLang, defaultLang)
 	if err != nil {
 		c.log.Printf(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -150,7 +154,7 @@ func (c *context) overviewHandler(session *sessions.Session, w http.ResponseWrit
 	if !ok {
 		scores = make(scoremap)
 		for _, task := range tasks {
-			scores[task.Name] = Verdict{}
+			scores[task.Name] = TaskVerdict{}
 		}
 		session.Values["scores"] = scores
 		if err := session.Save(r, w); err != nil {
@@ -242,15 +246,29 @@ func (c *context) submitHandler(session *sessions.Session, w http.ResponseWriter
 	if len(code) == 0 {
 		code = []byte(r.Form.Get("code"))
 	}
-	lang := r.Form.Get("lang")
 
-	result, err := judge(&task, c.db, []byte(session.Values["password"].(string)), code, lang)
-	if err != nil {
-		c.log.Printf(err.Error())
+	lang, ok := languageRegistry[r.Form.Get("lang")]
+	if !ok {
+		c.log.Printf("Language %s doesn't have a runner!", lang)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	session.Values["scores"].(scoremap)[name] = result
+
+	submissions <- submission{
+		task: &task,
+		db:   c.db,
+		key:  []byte(session.Values["password"].(string)),
+		code: code,
+		lang: lang,
+	}
+
+	// result, err := judge(&task, c.db, []byte(session.Values["password"].(string)), code, lang)
+	// if err != nil {
+	// 	c.log.Printf(err.Error())
+	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
+	// 	return
+	// }
+	// session.Values["scores"].(scoremap)[name] = result
 
 	if err := session.Save(r, w); err != nil {
 		c.log.Printf(err.Error())
@@ -302,12 +320,9 @@ func runServer(databaseLocation, referenceLocation string, port uint) error {
 	var err error
 	ctx := &context{}
 
-	// add scoremap to be used in gorilla/sessions
-	gob.Register(scoremap{})
-
 	// setup session storage
 	// TODO: ctx.store = sessions.NewCookieStore(generateKey(32))
-	ctx.store = sessions.NewCookieStore([]byte("u46IpCV9y5ai9r8YvODJEhgOY8a9JVE4"))
+	ctx.store = sessions.NewFilesystemStore("", []byte("u46IpCV9y5ai9r8YvODJEhgOY8a9JVE4"))
 	// TODO: ctx.sessionid = "obijudge" + strconv.Itoa(rand.Intn(1000))
 	ctx.sessionid = "testing"
 

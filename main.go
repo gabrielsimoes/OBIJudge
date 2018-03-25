@@ -39,6 +39,8 @@ func main() {
 				},
 			},
 			Action: func(c *cli.Context) error {
+				runJudge()
+				defer close(submissions)
 				err := runServer(c.String("database"), c.String("reference"), c.Uint("port"))
 				if err != nil {
 					fmt.Println(err)

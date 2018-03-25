@@ -3,7 +3,7 @@
         "Name": "inout",
         "Title": "In/Out",
         "TimeLimit": 1000,
-        "MemoryLimit": 512,
+        "MemoryLimit": 64000,
         "NTests": 2,
         "Batches": [
             {
