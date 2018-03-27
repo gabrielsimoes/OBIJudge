@@ -1,37 +1,41 @@
-//parse references available as .zip
 package main
 
 import (
 	"archive/zip"
+	"encoding/json"
 
 	"golang.org/x/tools/godoc/vfs"
 	"golang.org/x/tools/godoc/vfs/zipfs"
-	yaml "gopkg.in/yaml.v2"
 )
 
-type ReferenceData struct {
-	Name  string `yaml:"name"`
-	Title string `yaml:"title"`
-	Index string `yaml:"index"`
+type Reference struct {
+	Data       []ReferenceData
+	FileSystem vfs.FileSystem
 }
 
-func initReference(location string) ([]ReferenceData, vfs.FileSystem, error) {
+type ReferenceData struct {
+	Name  string `json:"name"`
+	Title string `json:"title"`
+	Index string `json:"index"`
+}
+
+func OpenReference(location string) (*Reference, error) {
 	rc, err := zip.OpenReader(location)
 	if err != nil {
-		return []ReferenceData{}, nil, err
+		return nil, err
 	}
 
-	fs := zipfs.New(rc, "")
-	info, err := vfs.ReadFile(fs, "/info.yml")
+	fs := zipfs.New(rc, "reference_zipfs")
+	info, err := vfs.ReadFile(fs, "/info.json")
 	if err != nil {
-		return []ReferenceData{}, nil, err
+		return nil, err
 	}
 
-	var reference []ReferenceData
-	err = yaml.Unmarshal(info, &reference)
+	var data []ReferenceData
+	err = json.Unmarshal(info, &data)
 	if err != nil {
-		return []ReferenceData{}, nil, err
+		return nil, err
 	}
 
-	return reference, fs, err
+	return &Reference{Data: data, FileSystem: fs}, nil
 }

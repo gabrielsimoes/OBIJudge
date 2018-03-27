@@ -1,80 +1,162 @@
 package main
 
 import (
-	"encoding/gob"
+	"errors"
 	"html/template"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
 
 	rice "github.com/GeertJohan/go.rice"
-	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	"github.com/gorilla/sessions"
 	"github.com/nicksnyder/go-i18n/i18n"
-	"golang.org/x/tools/godoc/vfs"
 	"golang.org/x/tools/godoc/vfs/httpfs"
 )
 
-// keeps everything handlers need to access in a session
-type context struct {
-	db        *database
-	templates *template.Template
-	reference []ReferenceData
-	store     *sessions.FilesystemStore
-	sessionid string
-	log       *log.Logger
+const (
+	localeCookieName = "obijudge-locale"
+)
+
+type Server struct {
+	Port      int
+	DB        *Database
+	Reference *Reference
+	Judge     *Judge
+	Logger    *log.Logger
+
+	templates      *template.Template
+	sessionManager *SessionManager
+	server         *http.Server
 }
 
-// keeps last submissions' scores
-type scoremap map[string]TaskVerdict
+func (srv *Server) Start() error {
+	// setup session storage
+	randString, _ := generateKey(10)
+	srv.sessionManager = NewSessionManager(srv.Judge.VerdictChannel,
+		"obijudge-"+string(randString))
 
-func init() {
-	// add scoremap to be used in gorilla/sessions
-	gob.Register(scoremap{})
+	// setup templates
+	srv.templates = template.New("")
+	templateBox := rice.MustFindBox("templates")
+	if err := templateBox.Walk("", func(path string, _ os.FileInfo, _ error) error {
+		if path == "" {
+			return nil
+		}
+
+		templateString, err := templateBox.String(path)
+		if err != nil {
+			return err
+		}
+
+		_, err = srv.templates.New(path).Funcs(template.FuncMap{
+			"T": i18n.IdentityTfunc(),
+		}).Parse(templateString)
+		return err
+	}); err != nil {
+		return err
+	}
+
+	// setup router
+	r := mux.NewRouter()
+
+	// default 404
+	r.NotFoundHandler = http.HandlerFunc(srv.notFoundHandler)
+
+	// setup reference
+	r.PathPrefix("/ref/").Handler(http.StripPrefix("/ref/",
+		http.FileServer(httpfs.New(srv.Reference.FileSystem))))
+
+	// load static files and serve
+	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/",
+		http.FileServer(rice.MustFindBox("static").HTTPBox())))
+
+	r.HandleFunc("/", srv.homeHandler).Methods("GET")
+	r.HandleFunc("/login", srv.loginHandler).Methods("POST")
+	r.HandleFunc("/logout", srv.logoutHandler).Methods("POST")
+
+	r.Handle("/overview", srv.authWrapper(srv.overviewHandler)).Methods("GET")
+	r.Handle("/task/{name}.pdf", srv.authWrapper(srv.pdfHandler)).Methods("GET")
+	r.Handle("/task/{name}", srv.authWrapper(srv.taskHandler)).Methods("GET")
+	r.Handle("/task/{name}", srv.authWrapper(srv.submitHandler)).Methods("POST")
+
+	// setup http.Server
+	srv.server = &http.Server{
+		Addr:    ":" + strconv.Itoa(srv.Port),
+		Handler: srv.loggingWrapper(srv.localeWrapper(r)),
+	}
+
+	// run server
+	go func() {
+		if err := srv.server.ListenAndServe(); err != nil {
+			srv.Logger.Print(err)
+		}
+	}()
+
+	return nil
 }
+
+func (srv *Server) Stop() {
+	if err := srv.server.Shutdown(nil); err != nil {
+		panic(err)
+	}
+}
+
+// TODO: implement error page
+// func (srv *Server) error(err error, w http.ResponseWriter, r *http.Request) {
+// }
 
 // template renderer
-func (c *context) render(w http.ResponseWriter, r *http.Request,
-	template string, data map[string]interface{}) {
-	acceptLang := r.Header.Get("Accept-Language")
-	// TODO: handle default language configuration
-	defaultLang := "en-US"
-	T, err := i18n.Tfunc(acceptLang, defaultLang)
+func (srv *Server) render(w http.ResponseWriter, r *http.Request, template string, data map[string]interface{}) {
+	newLocale := r.FormValue("locale")
+
+	var pastLocale string
+	localeCookie, err := r.Cookie(localeCookieName)
+	if err == nil {
+		pastLocale = localeCookie.Value
+	}
+
+	acceptLocale := r.Header.Get("Accept-Language")
+
+	// TODO: handle default locale configuration
+	defaultLocale := "en-US"
+
+	T, err := i18n.Tfunc(newLocale, pastLocale, acceptLocale, defaultLocale)
 	if err != nil {
-		c.log.Printf(err.Error())
+		srv.Logger.Print(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
 	data["T"] = T
-
-	err = c.templates.Funcs(map[string]interface{}{
+	err = srv.templates.Funcs(map[string]interface{}{
 		"T": T,
 	}).ExecuteTemplate(w, template, data)
 	if err != nil {
-		c.log.Printf(err.Error())
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		srv.Logger.Print(err)
 	}
 }
 
 // 404 page handler
-func (c *context) notFoundHandler(w http.ResponseWriter, r *http.Request) {
-	c.render(w, r, "404.html", map[string]interface{}{})
+func (srv *Server) notFoundHandler(w http.ResponseWriter, r *http.Request) {
+	// TODO: Should send 404 code:
+	srv.render(w, r, "404.html", map[string]interface{}{})
 }
 
 // login handler
-func (c *context) loginHandler(w http.ResponseWriter, r *http.Request) {
-	session, err := c.store.Get(r, c.sessionid)
+func (srv *Server) loginHandler(w http.ResponseWriter, r *http.Request) {
+	s, err := srv.sessionManager.OpenSession(w, r)
 	if err != nil {
-		c.log.Printf(err.Error())
+		srv.Logger.Print(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	err = r.ParseForm()
 	if err != nil {
-		c.log.Printf(err.Error())
+		srv.Logger.Print(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -82,15 +164,9 @@ func (c *context) loginHandler(w http.ResponseWriter, r *http.Request) {
 	password := r.Form.Get("password")
 	contest := r.Form.Get("contest")
 
-	if c.db.authenticate([]byte(password)) {
-		session.Values["password"] = password
-		session.Values["authenticated"] = true
-		session.Values["contest"] = contest
-		if err := session.Save(r, w); err != nil {
-			c.log.Printf(err.Error())
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
+	if srv.DB.Authenticate([]byte(password)) {
+		s.SetPassword([]byte(password))
+		s.SetContest(contest)
 		http.Redirect(w, r, "/", http.StatusFound)
 	} else {
 		http.Redirect(w, r, "/?wrong=true", http.StatusFound)
@@ -98,33 +174,30 @@ func (c *context) loginHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // logout handler
-func (c *context) logoutHandler(w http.ResponseWriter, r *http.Request) {
-	http.SetCookie(w, &http.Cookie{
-		Name:    c.sessionid,
-		Value:   "",
-		Path:    "/",
-		Expires: time.Unix(0, 0),
-	})
+func (srv *Server) logoutHandler(w http.ResponseWriter, r *http.Request) {
+	srv.sessionManager.DeleteSession(w, r)
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
-func (c *context) homeHandler(w http.ResponseWriter, r *http.Request) {
-	session, err := c.store.Get(r, c.sessionid)
+func (srv *Server) homeHandler(w http.ResponseWriter, r *http.Request) {
+	s, err := srv.sessionManager.OpenSession(w, r)
 	if err != nil {
-		c.log.Printf(err.Error())
+		srv.Logger.Print(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
-	if auth, ok := session.Values["authenticated"]; !ok || !auth.(bool) {
-		contests, err := c.db.getContests()
+	if len(s.GetPassword()) == 0 {
+		contests, err := srv.DB.Contests()
 		if err != nil {
-			c.log.Printf(err.Error())
+			srv.Logger.Print(err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		wrongpassword := r.FormValue("wrong")
 
-		c.render(w, r, "home.html", map[string]interface{}{
+		srv.render(w, r, "home.html", map[string]interface{}{
 			"PageID":        "_home",
 			"Title":         "OBIJudge",
 			"Contests":      contests,
@@ -135,74 +208,60 @@ func (c *context) homeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (c *context) overviewHandler(session *sessions.Session, w http.ResponseWriter, r *http.Request) {
-	contest, err := c.db.getContest(session.Values["contest"].(string))
+func (srv *Server) overviewHandler(s *Session, w http.ResponseWriter, r *http.Request) {
+	contest, err := srv.DB.Contest(s.GetContest())
 	if err != nil {
-		c.log.Printf(err.Error())
+		srv.Logger.Print(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	tasks, err := c.db.getContestTasks(session.Values["contest"].(string))
+	tasks, err := srv.DB.ContestTasks(s.GetContest())
 	if err != nil {
-		c.log.Printf(err.Error())
+		srv.Logger.Print(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	scores, ok := session.Values["scores"].(scoremap)
-	if !ok {
-		scores = make(scoremap)
-		for _, task := range tasks {
-			scores[task.Name] = TaskVerdict{}
-		}
-		session.Values["scores"] = scores
-		if err := session.Save(r, w); err != nil {
-			c.log.Printf(err.Error())
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-	}
-
-	c.render(w, r, "overview.html", map[string]interface{}{
+	srv.render(w, r, "overview.html", map[string]interface{}{
 		"PageID": "_overview",
 		"Title":  contest.Title,
 		"Tasks":  tasks,
-		"Scores": scores,
-		"Refs":   c.reference,
+		"Scores": nil,
+		"Refs":   srv.Reference.Data,
 	})
 }
 
-func (c *context) taskHandler(session *sessions.Session, w http.ResponseWriter, r *http.Request) {
+func (srv *Server) taskHandler(s *Session, w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name := vars["name"]
 
-	task, err := c.db.getTask(name)
+	task, err := srv.DB.Task(name)
 	if err != nil {
-		c.log.Printf(err.Error())
-		c.notFoundHandler(w, r)
+		srv.Logger.Print(err)
+		srv.notFoundHandler(w, r)
 		return
 	}
 
-	tasks, err := c.db.getContestTasks(session.Values["contest"].(string))
+	tasks, err := srv.DB.ContestTasks(s.GetContest())
 	if err != nil {
-		c.log.Printf(err.Error())
+		srv.Logger.Print(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	statement, err := c.db.getStatement(name, []byte(session.Values["password"].(string)))
+	statement, err := srv.DB.Statement(name, s.GetPassword())
 	if err != nil {
-		c.log.Printf(err.Error())
+		srv.Logger.Print(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	c.render(w, r, "task.html", map[string]interface{}{
+	srv.render(w, r, "task.html", map[string]interface{}{
 		"PageID":        task.Name,
 		"Title":         task.Title,
 		"Tasks":         tasks,
-		"Refs":          c.reference,
+		"Refs":          srv.Reference.Data,
 		"Task":          task,
 		"HasPDF":        len(statement.PDF) > 0,
 		"HasHTML":       len(statement.HTML) > 0,
@@ -210,27 +269,27 @@ func (c *context) taskHandler(session *sessions.Session, w http.ResponseWriter, 
 	})
 }
 
-func (c *context) submitHandler(session *sessions.Session, w http.ResponseWriter, r *http.Request) {
+func (srv *Server) submitHandler(s *Session, w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name := vars["name"]
 
-	task, err := c.db.getTask(name)
+	task, err := srv.DB.Task(name)
 	if err != nil {
-		c.log.Printf(err.Error())
-		c.notFoundHandler(w, r)
+		srv.Logger.Print(err)
+		srv.notFoundHandler(w, r)
 		return
 	}
 
 	err = r.ParseMultipartForm(32 << 20)
 	if err != nil {
-		c.log.Printf(err.Error())
+		srv.Logger.Print(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	file, _, err := r.FormFile("file")
 	if err != nil {
-		c.log.Printf(err.Error())
+		srv.Logger.Print(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -238,7 +297,7 @@ func (c *context) submitHandler(session *sessions.Session, w http.ResponseWriter
 
 	code, err := ioutil.ReadAll(file)
 	if err != nil {
-		c.log.Printf(err.Error())
+		srv.Logger.Print(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -249,43 +308,31 @@ func (c *context) submitHandler(session *sessions.Session, w http.ResponseWriter
 
 	lang, ok := languageRegistry[r.Form.Get("lang")]
 	if !ok {
-		c.log.Printf("Language %s doesn't have a runner!", lang)
+		err = errors.New("Language " + r.Form.Get("lang") + " doesn't have a runner!")
+		srv.Logger.Print(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	submissions <- submission{
-		task: &task,
-		db:   c.db,
-		key:  []byte(session.Values["password"].(string)),
-		code: code,
-		lang: lang,
-	}
-
-	// result, err := judge(&task, c.db, []byte(session.Values["password"].(string)), code, lang)
-	// if err != nil {
-	// 	c.log.Printf(err.Error())
-	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
-	// 	return
-	// }
-	// session.Values["scores"].(scoremap)[name] = result
-
-	if err := session.Save(r, w); err != nil {
-		c.log.Printf(err.Error())
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	srv.Judge.SubmissionChannel <- Submission{
+		SID:  s.GetID(),
+		When: time.Now(),
+		Task: &task,
+		Code: code,
+		Lang: lang,
+		Key:  s.GetPassword(),
 	}
 
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
-func (c *context) pdfHandler(session *sessions.Session, w http.ResponseWriter, r *http.Request) {
+func (srv *Server) pdfHandler(s *Session, w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name := vars["name"]
 
-	statement, err := c.db.getStatement(name, []byte(session.Values["password"].(string)))
+	statement, err := srv.DB.Statement(name, s.GetPassword())
 	if err != nil {
-		c.log.Printf(err.Error())
+		srv.Logger.Print(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -295,118 +342,81 @@ func (c *context) pdfHandler(session *sessions.Session, w http.ResponseWriter, r
 		w.Header().Set("Content-Type", r.Header.Get("Content-Type"))
 		w.Write(statement.PDF)
 	} else {
-		c.log.Printf("No problem statement for \"%s\".", name)
-		c.notFoundHandler(w, r)
+		err = errors.New("No PDF problem statement for " + name + ".")
+		srv.Logger.Print(err)
+		srv.notFoundHandler(w, r)
 	}
 }
 
-func (c *context) authWrapper(f func(*sessions.Session, http.ResponseWriter, *http.Request)) http.Handler {
+func (srv *Server) localeWrapper(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		session, err := c.store.Get(r, c.sessionid)
-		if err != nil {
-			c.log.Printf(err.Error())
+		newLocale := r.FormValue("locale")
+		if newLocale != "" {
+			http.SetCookie(w, &http.Cookie{
+				Name:  localeCookieName,
+				Value: newLocale,
+				Path:  "/",
+			})
 		}
 
-		if auth, ok := session.Values["authenticated"]; !ok || !auth.(bool) {
+		next.ServeHTTP(w, r)
+	})
+}
+
+type loggingResponseWriter struct {
+	http.ResponseWriter
+	status int
+	size   int
+}
+
+func (lrw *loggingResponseWriter) WriteHeader(code int) {
+	lrw.status = code
+	lrw.ResponseWriter.WriteHeader(code)
+}
+
+func (lrw *loggingResponseWriter) Write(b []byte) (int, error) {
+	size, err := lrw.ResponseWriter.Write(b)
+	lrw.size += size
+	return size, err
+}
+
+func (srv *Server) loggingWrapper(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		lrw := &loggingResponseWriter{w, http.StatusOK, 0}
+
+		defer func() {
+			host, _, err := net.SplitHostPort(r.RemoteAddr)
+			if err != nil {
+				host = r.RemoteAddr
+			}
+
+			uri := r.RequestURI
+			if uri == "" {
+				uri = r.URL.RequestURI()
+			}
+
+			srv.Logger.Println(host, "--", r.Method, uri, r.Proto, "--",
+				lrw.status, http.StatusText(lrw.status), lrw.size, "bytes")
+		}()
+
+		next.ServeHTTP(lrw, r)
+	})
+}
+
+func (srv *Server) authWrapper(f func(*Session, http.ResponseWriter, *http.Request)) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		s, err := srv.sessionManager.OpenSession(w, r)
+		if err != nil {
+			srv.Logger.Print(err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		if len(s.GetPassword()) == 0 {
 			http.Redirect(w, r, "/", http.StatusFound)
 			return
 		}
 
-		f(session, w, r)
+		f(s, w, r)
 	})
-}
-
-func runServer(databaseLocation, referenceLocation string, port uint) error {
-	var err error
-	ctx := &context{}
-
-	// setup session storage
-	// TODO: ctx.store = sessions.NewCookieStore(generateKey(32))
-	ctx.store = sessions.NewFilesystemStore("", []byte("u46IpCV9y5ai9r8YvODJEhgOY8a9JVE4"))
-	// TODO: ctx.sessionid = "obijudge" + strconv.Itoa(rand.Intn(1000))
-	ctx.sessionid = "testing"
-
-	// setup logging
-	ctx.log = log.New(os.Stderr, "[OBIJUDGE] ", 2)
-
-	// setup database
-	ctx.db, err = openDatabase(databaseLocation)
-	if err != nil {
-		return err
-	}
-	defer ctx.db.close()
-
-	// setup translations
-	translationsBox := rice.MustFindBox("translations")
-	translationsBox.Walk("", func(path string, info os.FileInfo, _ error) error {
-		if path == "" {
-			return nil
-		}
-
-		translationBytes, err := translationsBox.Bytes(path)
-		if err != nil {
-			return err
-		}
-
-		err = i18n.ParseTranslationFileBytes(path, translationBytes)
-		return err
-	})
-	if err != nil {
-		return err
-	}
-
-	// setup templates
-	ctx.templates = template.New("")
-	templateBox := rice.MustFindBox("templates")
-	templateBox.Walk("", func(path string, _ os.FileInfo, _ error) error {
-		if path == "" {
-			return nil
-		}
-
-		templateString, err := templateBox.String(path)
-		if err != nil {
-			return err
-		}
-
-		_, err = ctx.templates.New(path).Funcs(template.FuncMap{
-			"T": i18n.IdentityTfunc(),
-		}).Parse(templateString)
-		return err
-	})
-	if err != nil {
-		return err
-	}
-
-	// setup static pages for language reference
-	var referenceFS vfs.FileSystem
-	ctx.reference, referenceFS, err = initReference(referenceLocation)
-	if err != nil {
-		return err
-	}
-
-	// setup router
-	r := mux.NewRouter()
-
-	// default 404
-	r.NotFoundHandler = http.HandlerFunc(ctx.notFoundHandler)
-
-	// setup reference
-	r.PathPrefix("/ref/").Handler(http.StripPrefix("/ref/",
-		http.FileServer(httpfs.New(referenceFS))))
-
-	// load static files and serve
-	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/",
-		http.FileServer(rice.MustFindBox("static").HTTPBox())))
-
-	r.HandleFunc("/", ctx.homeHandler).Methods("GET")
-	r.HandleFunc("/login", ctx.loginHandler).Methods("POST")
-	r.HandleFunc("/logout", ctx.logoutHandler).Methods("POST")
-
-	r.Handle("/overview", ctx.authWrapper(ctx.overviewHandler)).Methods("GET")
-	r.Handle("/task/{name}.pdf", ctx.authWrapper(ctx.pdfHandler)).Methods("GET")
-	r.Handle("/task/{name}", ctx.authWrapper(ctx.taskHandler)).Methods("GET")
-	r.Handle("/task/{name}", ctx.authWrapper(ctx.submitHandler)).Methods("POST")
-
-	return http.ListenAndServe(":"+strconv.Itoa(int(port)),
-		handlers.LoggingHandler(os.Stderr, r))
 }

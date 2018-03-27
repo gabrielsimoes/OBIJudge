@@ -2,7 +2,7 @@ package main
 
 import "os/exec"
 
-type language interface {
+type Language interface {
 	// Returns a name that identifies the language. e.g. C++11 / g++
 	name() string
 
@@ -22,7 +22,7 @@ type language interface {
 	evaluationCommand(executableFilename string, args []string) []string
 }
 
-var languageRegistry = map[string]language{
+var languageRegistry = map[string]Language{
 	"cpp": &cpp{},
 	// "c":    &c{},
 	// "pas":  &pas{},

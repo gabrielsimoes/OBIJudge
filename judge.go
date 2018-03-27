@@ -3,12 +3,10 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
-	"unicode"
 )
 
 const (
@@ -35,18 +33,31 @@ const (
 )
 
 var (
-	ENV         []string        = []string{ENV_HOME, ENV_PATH}
-	submissions chan submission = make(chan submission, 100)
+	ENV []string = []string{ENV_HOME, ENV_PATH}
 )
 
+type Submission struct {
+	SID  string
+	When time.Time
+	Task *TaskData
+	Code []byte
+	Lang Language
+	Key  []byte
+}
+
 type TaskVerdict struct {
+	SID       string
+	When      time.Time
+	TaskTitle string
+	TaskName  string
+	Code      string
+	Lang      string
+
 	Score       int
 	Batches     []BatchVerdict
 	Compilation int
 	Error       bool
 	Extra       string
-	When        time.Time
-	Code        string
 }
 
 type BatchVerdict struct {
@@ -57,32 +68,99 @@ type BatchVerdict struct {
 	Extra  string
 }
 
-type submission struct {
-	task *TaskData
-	db   *database
-	key  []byte
-	code []byte
-	lang language
+type Judge struct {
+	NumWorkers        int
+	DB                *Database
+	SubmissionChannel chan<- Submission
+	VerdictChannel    <-chan TaskVerdict
+
+	workers []*judgeWorker
 }
 
-func (s *submission) judge(boxId int) TaskVerdict {
-	box, err := Sandbox(boxId)
+func (j *Judge) Start() {
+	subChan := make(chan Submission, 100)
+	verChan := make(chan TaskVerdict, 100)
+
+	j.SubmissionChannel = subChan
+	j.VerdictChannel = verChan
+
+	for id := 0; id < j.NumWorkers; id++ {
+		worker := &judgeWorker{
+			id:                id,
+			db:                j.DB,
+			submissionChannel: subChan,
+			verdictChannel:    verChan,
+		}
+
+		j.workers = append(j.workers, worker)
+
+		worker.start()
+	}
+}
+
+func (j *Judge) Stop() {
+	for _, worker := range j.workers {
+		worker.stop()
+	}
+
+	close(j.SubmissionChannel)
+}
+
+type judgeWorker struct {
+	id                int
+	db                *Database
+	submissionChannel <-chan Submission
+	verdictChannel    chan<- TaskVerdict
+
+	stopChannel chan bool
+}
+
+func (w *judgeWorker) start() {
+	w.stopChannel = make(chan bool)
+	go func() {
+		for {
+			select {
+			case <-w.stopChannel:
+				return
+			case s := <-w.submissionChannel:
+				verdict := w.judge(s)
+
+				verdict.SID = s.SID
+				verdict.When = s.When
+				verdict.TaskTitle = s.Task.Title
+				verdict.TaskName = s.Task.Name
+				verdict.Code = string(s.Code)
+				verdict.Lang = s.Lang.name()
+
+				fmt.Printf("%+v\n", verdict)
+				w.verdictChannel <- verdict
+			}
+		}
+	}()
+}
+
+func (w *judgeWorker) stop() {
+	w.stopChannel <- true
+}
+
+func (w *judgeWorker) judge(s Submission) TaskVerdict {
+	box, err := Sandbox(w.id)
 	if err != nil {
 		return TaskVerdict{Error: true, Extra: err.Error()}
 	}
 	defer box.Clear()
 
-	err = s.lang.copyExtraFiles(box.BoxPath)
+	err = s.Lang.copyExtraFiles(box.BoxPath)
 	if err != nil {
 		return TaskVerdict{Error: true, Extra: err.Error()}
 	}
 
-	err = writeNewFile(filepath.Join(box.BoxPath, "box", s.task.Name+s.lang.sourceExtension()), s.code)
+	err = writeNewFile(filepath.Join(box.BoxPath, "box", s.Task.Name+s.Lang.sourceExtension()), s.Code)
 	if err != nil {
 		return TaskVerdict{Error: true, Extra: err.Error()}
 	}
 
-	compilationCommand := s.lang.compilationCommand([]string{s.task.Name + s.lang.sourceExtension()}, s.task.Name)
+	compilationCommand := s.Lang.compilationCommand([]string{s.Task.Name + s.Lang.sourceExtension()}, s.Task.Name)
 	var compilationOutput bytes.Buffer
 	compilationResult := box.Run(&BoxConfig{
 		Path:          compilationCommand[0],
@@ -99,35 +177,31 @@ func (s *submission) judge(boxId int) TaskVerdict {
 	var ret TaskVerdict
 
 	if compilationResult.Status == STATUS_ERR {
+		fmt.Println("Compilation error")
 		return TaskVerdict{Error: true, Extra: compilationResult.Error}
 	} else {
 		if compilationResult.Status == STATUS_WTL || compilationResult.Status == STATUS_CTL {
-			ret.Compilation = RESULT_COMP_TIMEOUT
-			return ret
+			return TaskVerdict{Compilation: RESULT_COMP_TIMEOUT}
 		} else if compilationResult.Status == STATUS_SIG {
-			ret.Compilation = RESULT_COMP_SIGNAL
-			ret.Extra = strconv.Itoa(int(compilationResult.Signal))
-			return ret
+			return TaskVerdict{Compilation: RESULT_COMP_SIGNAL, Extra: strconv.Itoa(int(compilationResult.Signal))}
 		} else if compilationResult.Status == STATUS_EXT {
-			ret.Compilation = RESULT_COMP_FAILED
-			ret.Extra = strconv.Itoa(compilationResult.ExitCode) + "\n" + compilationOutput.String()
-			return ret
+			return TaskVerdict{Compilation: RESULT_COMP_FAILED, Extra: strconv.Itoa(compilationResult.ExitCode) + "\n" + compilationOutput.String()}
 		} else if compilationResult.Status == STATUS_OK {
 			ret.Compilation = RESULT_COMP_SUCCESS
 		}
 	}
 
-	tests, err := s.db.getTests(s.task.Name, s.key)
+	tests, err := w.db.Tests(s.Task.Name, s.Key)
 	if err != nil {
 		return TaskVerdict{Error: true, Extra: err.Error()}
 	}
 
-	if len(s.task.Batches) == 0 {
-		tests := make([]int, s.task.NTests)
-		for i := 0; i < s.task.NTests; i++ {
+	if len(s.Task.Batches) == 0 {
+		tests := make([]int, s.Task.NTests)
+		for i := 0; i < s.Task.NTests; i++ {
 			tests[i] = i
 		}
-		s.task.Batches = []BatchData{{100, tests}}
+		s.Task.Batches = []BatchData{{100, tests}}
 	}
 
 	results := make([]struct {
@@ -136,15 +210,16 @@ func (s *submission) judge(boxId int) TaskVerdict {
 		time   time.Duration
 		memory int64
 	}, len(tests))
-	ret.Batches = make([]BatchVerdict, len(s.task.Batches))
 
-	for batchNumber, batch := range s.task.Batches {
+	ret.Batches = make([]BatchVerdict, len(s.Task.Batches))
+
+	for batchNumber, batch := range s.Task.Batches {
 		ret.Batches[batchNumber].Result = RESULT_CORRECT
 
 		for _, i := range batch.Tests {
 			test := tests[i]
 			if results[i].code == RESULT_NOTHING {
-				command := s.lang.evaluationCommand(s.task.Name, nil)
+				command := s.Lang.evaluationCommand(s.Task.Name, nil)
 				var output bytes.Buffer
 				result := box.Run(&BoxConfig{
 					Path:          command[0],
@@ -153,9 +228,9 @@ func (s *submission) judge(boxId int) TaskVerdict {
 					Stdin:         bytes.NewReader(test.Input),
 					Stdout:        &output,
 					EnableCgroups: true,
-					MemoryLimit:   int64(s.task.MemoryLimit),
-					CPUTimeLimit:  time.Duration(s.task.TimeLimit) * time.Millisecond,
-					WallTimeLimit: time.Duration(s.task.TimeLimit) * time.Millisecond,
+					MemoryLimit:   int64(s.Task.MemoryLimit),
+					CPUTimeLimit:  time.Duration(s.Task.TimeLimit) * time.Millisecond,
+					WallTimeLimit: time.Duration(s.Task.TimeLimit) * time.Millisecond,
 				})
 
 				if result.Status == STATUS_ERR {
@@ -206,58 +281,4 @@ func (s *submission) judge(boxId int) TaskVerdict {
 	}
 
 	return ret
-}
-
-func runJudge() {
-	for id := 0; id < NUM_WORKERS; id++ {
-		go func(id int) {
-			for s := range submissions {
-				when := time.Now()
-				verdict := s.judge(id)
-				verdict.When = when
-				verdict.Code = string(s.code)
-				fmt.Printf("%+v\n", verdict)
-			}
-		}(id)
-	}
-}
-
-func strip(in string) string {
-	white := false
-	var out string
-
-	for _, c := range in {
-		if unicode.IsSpace(c) {
-			if !white {
-				out = out + " "
-			}
-			white = true
-		} else {
-			out = out + string(c)
-			white = false
-		}
-	}
-
-	return out
-}
-
-func writeNewFile(path string, text []byte) error {
-	_ = os.Remove(path)
-
-	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0666)
-	if err != nil {
-		return err
-	}
-
-	_, err = file.Write(text)
-	if err != nil {
-		return err
-	}
-
-	err = file.Close()
-	if err != nil {
-		return err
-	}
-
-	return nil
 }

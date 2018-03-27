@@ -87,7 +87,7 @@ type BoxResult struct {
 
 type Box struct {
 	// When running multiple boxes, each should have their own id
-	Id int
+	ID int
 
 	// Box location in filesystem (absolute path)
 	BoxPath string
@@ -144,7 +144,7 @@ func Sandbox(id int) (*Box, error) {
 	}
 
 	b := &Box{
-		Id:      id,
+		ID:      id,
 		BoxPath: filepath.Join(BOX_ROOT, strconv.Itoa(id)),
 		BoxImg:  filepath.Join(BOX_ROOT, strconv.Itoa(id)+".img"),
 	}
@@ -177,9 +177,10 @@ func Sandbox(id int) (*Box, error) {
 	}
 
 	img.Close()
-	if err := exec.Command("mkfs.ext4", "-O", "^has_journal", "-q", b.BoxImg).Run(); err != nil {
+	output, err := exec.Command("mkfs.ext4", "-O", "^has_journal", "-q", b.BoxImg).CombinedOutput()
+	if err != nil {
 		b.Clear()
-		return nil, err
+		return nil, errors.New(err.Error() + ":" + string(output))
 	}
 
 	if err := os.Mkdir(b.BoxPath, 0777); err != nil {
@@ -192,9 +193,10 @@ func Sandbox(id int) (*Box, error) {
 		return nil, err
 	}
 
-	if err := exec.Command("mount", "-o", "loop,rw,usrquota,grpquota", b.BoxImg, filepath.Join(b.BoxPath, "box")).Run(); err != nil {
+	output, err = exec.Command("mount", "-o", "loop,rw,usrquota,grpquota", b.BoxImg, filepath.Join(b.BoxPath, "box")).CombinedOutput()
+	if err != nil {
 		b.Clear()
-		return nil, err
+		return nil, errors.New(err.Error() + " - " + string(output))
 	}
 
 	origUid := os.Getuid()
@@ -242,13 +244,13 @@ func (b *Box) Run(c *BoxConfig) *BoxResult {
 		}
 	}
 
-	c.boxUid = BOX_FIRST_UID + b.Id
-	c.boxGid = BOX_FIRST_GID + b.Id
+	c.boxUid = BOX_FIRST_UID + b.ID
+	c.boxGid = BOX_FIRST_GID + b.ID
 	c.boxPath = b.BoxPath
 
 	if c.EnableCgroups {
 		var err error
-		c.control, err = cgroups.New(cgroups.V1, cgroups.StaticPath(fmt.Sprintf("box-%d-%d", b.Id, rand.Intn(100))), &specs.LinuxResources{})
+		c.control, err = cgroups.New(cgroups.V1, cgroups.StaticPath(fmt.Sprintf("box-%d-%d", b.ID, rand.Intn(100))), &specs.LinuxResources{})
 		if err != nil {
 			c.result.Status = STATUS_ERR
 			c.result.Error = err.Error()
