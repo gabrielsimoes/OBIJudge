@@ -157,7 +157,7 @@ func Sandbox(id int) (*Box, error) {
 		return nil, errors.New("Must be run as root group")
 	}
 
-	unix.Umask(022)
+	unix.Umask(077)
 
 	os.RemoveAll(b.BoxPath)
 	os.RemoveAll(b.BoxImg)
@@ -232,7 +232,7 @@ func (b *Box) Run(c *BoxConfig) *BoxResult {
 		return c.result
 	}
 
-	unix.Umask(022)
+	unix.Umask(077)
 
 	if c.EnableCgroups {
 		for _, dir := range []string{"", "memory", "cpuacct", "cpuset"} {
