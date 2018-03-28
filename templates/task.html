@@ -22,8 +22,8 @@
       <form enctype="multipart/form-data" method="post" action="/task/{{.Task.Name}}">
         <div class="row">
           <label for="code">{{T "code_label"}}</label>
-          <textarea class="u-full-width" placeholder="{{T "insert_code"}}"
-            style="height: 350px;" id="code" name="code" class="code"></textarea>
+          <textarea class="u-full-width code" id="code" name="code"
+               placeholder="{{T "insert_code"}}" style="height: 350px;"></textarea>
         </div>
 
         <div class="row">
@@ -54,5 +54,15 @@
     </div>
   </div>
 </div>
+
+<script>
+$(document).ready(function() {
+  var editor = CodeMirror.fromTextArea(document.getElementById('code'), {
+    mode:  "text/x-c++src",
+    lineNumbers: true,
+    matchBrackets: true,
+  });
+})
+</script>
 
 {{template "footer.html"}}

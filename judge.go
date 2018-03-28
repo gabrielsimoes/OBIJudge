@@ -177,7 +177,6 @@ func (w *judgeWorker) judge(s Submission) TaskVerdict {
 	var ret TaskVerdict
 
 	if compilationResult.Status == STATUS_ERR {
-		fmt.Println("Compilation error")
 		return TaskVerdict{Error: true, Extra: compilationResult.Error}
 	} else {
 		if compilationResult.Status == STATUS_WTL || compilationResult.Status == STATUS_CTL {

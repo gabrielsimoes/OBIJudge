@@ -1,43 +1,46 @@
 {{template "header.html" T "login"}}
 
-<div class="container"
-     style="position: absolute;
-            top: 50%;
-            left: 50%;
-            -webkit-transform: translateY(-50%) translateX(-50%);
-                -ms-transform: translateY(-50%) translateX(-50%);
-                    transform: translateY(-50%) translateX(-50%);
-            text-align:center;">
-  <div class="row">{{template "logo.html"}}</div>
+<div class="container">
+  <div class="one-third column"
+       style="position: absolute;
+              top: 50%;
+              left: 50%;
+              -webkit-transform: translateY(50%) translateX(-50%);
+                  -ms-transform: translateY(50%) translateX(-50%);
+                      transform: translateY(50%) translateX(-50%);
+              text-align:center;">
 
-  {{if eq .WrongPassword "true"}}
-  <div class="row"
-       style="border-radius: 4px;
-       height: 30px;
-       line-height: 30px;
-       margin-bottom: 15px;
-       background: #f2dede;
-       color: #b94a48;">
-    <p class="u-full-width">{{T "invalid_password"}}</p>
+    <div class="row" style="margin: 10px 0">{{template "logo.html"}}</div>
+
+    {{if eq .WrongPassword "true"}}
+    <div class="row"
+         style="border-radius: 4px;
+         height: 30px;
+         line-height: 30px;
+         margin-bottom: 15px;
+         background: #f2dede;
+         color: #b94a48;">
+      <p class="u-full-width">{{T "invalid_password"}}</p>
+    </div>
+    {{end}}
+
+    <form method="post" action="/login">
+      <div class="row">
+        <input class="u-full-width" type="password" placeholder="{{T "password_placeholder"}}" name="password" required>
+      </div>
+      <div class="row">
+        <select class="u-full-width" id="contest" name="contest" required>
+          <option value="" disabled selected hidden>{{T "select_competition"}}</option>
+          {{range .Contests}}
+          <option value="{{.Name}}">{{.Title}}</option>
+          {{end}}
+        </select>
+      </div>
+      <div class="row">
+        <input class="button-primary u-full-width" type="submit" value="login">
+      </div>
+    </form>
   </div>
-  {{end}}
-
-  <form method="post" action="/login">
-    <div class="row">
-      <input class="u-full-width" type="password" placeholder="{{T "password_placeholder"}}" name="password" required>
-    </div>
-    <div class="row">
-      <select class="u-full-width" id="contest" name="contest" required>
-        <option value="" disabled selected hidden>{{T "select_competition"}}</option>
-        {{range .Contests}}
-        <option value="{{.Name}}">{{.Title}}</option>
-        {{end}}
-      </select>
-    </div>
-    <div class="row">
-      <input class="button-primary u-full-width" type="submit" value="login">
-    </div>
-  </form>
 </div>
 
 {{template "footer.html"}}

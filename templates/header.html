@@ -1,60 +1,28 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
 <head>
   <meta charset="utf-8">
   <title>{{.}}</title>
-  <meta name="description" content="">
-  <meta name="author" content="">
 
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <link rel="shortcut icon" href="/static/images/obi.ico" type="image/x-icon">
-  <link rel="icon" href="/static/images/obi.ico" type="image/x-icon">
+  <link rel="shortcut icon" href="/static/dist/obi.ico" type="image/x-icon">
+  <link rel="icon" href="/static/dist/obi.ico" type="image/x-icon">
 
-  <link rel="stylesheet" href="/static/css/fonts.css">
-  <link rel="stylesheet" href="/static/css/normalize.css">
-  <link rel="stylesheet" href="/static/css/skeleton.css">
+  <link rel="stylesheet" href="/static/dist/obijudge.css">
+  <link rel="stylesheet" href="/static/dist/fonts.css">
 
-  <style>
-    body { font-family: "Lato", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif; }
-    .container { margin-top: 40px; margin-bottom: 40px; }
-    .code { white-space:pre; }
+  <script src="/static/dist/obijudge.js"></script>
 
-    input[type="file"] {
-      color: black;
-      outline: none;
-    }
-
-    input[type="file"]::-webkit-file-upload-button {
-      display: inline-block;
-      height: 38px;
-      padding: 0 30px;
-      color: #555;
-      text-align: center;
-      font-size: 11px;
-      font-weight: 600;
-      line-height: 38px;
-      letter-spacing: .1rem;
-      text-transform: uppercase;
-      text-decoration: none;
-      white-space: nowrap;
-      background-color: transparent;
-      border-radius: 4px;
-      border: 1px solid #bbb;
-      cursor: pointer;
-      box-sizing: border-box;
-    }
-  </style>
-
-  <script type="text/javascript" async
-          src="/static/js/mathjax-2.7.3/MathJax.js?config=TeX-MML-AM_CHTML">
-  </script>
-
-  <script type="text/x-mathjax-config">
-    MathJax.Hub.Config({
-      tex2jax: { inlineMath: [ ["$", "$"], ["\\(","\\)"] ],
-                displayMath: [ ["$$","$$"], ["\\[", "\\]"] ],
-                processEscapes: true }
+  <script>
+    $(document).ready(function() {
+      renderMathInElement(document.body, {
+        delimiters: [
+          {left: "$$", right: "$$", display: true},
+          {left: "\\[", right: "\\]", display: true},
+          {left: "$", right: "$", display: false},
+          {left: "\\(", right: "\\)", display: false}
+        ]
+      });
     });
   </script>
 </head>

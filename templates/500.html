@@ -1,0 +1,17 @@
+{{template "header.html" "500"}}
+
+<div class="container"
+     style="position: absolute;
+            top: 50%;
+            left: 50%;
+            -webkit-transform: translateY(-50%) translateX(-50%);
+                -ms-transform: translateY(-50%) translateX(-50%);
+                    transform: translateY(-50%) translateX(-50%);
+            text-align:center;">
+  <h1>500</h1>
+  <h2>{{T "internal_server_error"}}</h2>
+  <p>{{ .Error }}</p>
+  <a href="/"><button>{{T "go_to_home"}}</button></a>
+</div>
+
+{{ template "footer.html"}}

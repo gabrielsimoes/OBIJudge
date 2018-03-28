@@ -1,4 +1,7 @@
 contests.zip
 reference.zip
 rice-box.go
-OBIJudge*
+OBIJudge
+main
+yarn-error.log
+node_modules

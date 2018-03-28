@@ -1,0 +1,26 @@
+{
+  "name": "OBIJudge",
+  "version": "0.1",
+  "description": "A local programming contest judge for preliminary tests for OBI (Brazilian OI)",
+  "main": "main.go",
+  "repository": "git@github.com:gabrielsimoes/OBIJudge.git",
+  "author": "Gabriel Silva Simões <simoes.sgabriel@gmail.com>",
+  "license": "AGPL-3.0",
+  "private": true,
+  "devDependencies": {
+    "codemirror": "^5.36.0",
+    "gulp": "^3.9.1",
+    "gulp-clean": "^0.4.0",
+    "gulp-concat": "^2.6.1",
+    "gulp-csso": "^3.0.1",
+    "gulp-google-webfonts": "^1.0.0",
+    "gulp-if-env": "^0.1.0",
+    "gulp-sourcemaps": "^2.6.4",
+    "gulp-uglify": "^3.0.0",
+    "jquery": "^3.3.1",
+    "katex": "^0.9.0",
+    "merge-stream": "^1.0.1",
+    "normalize.css": "^8.0.0",
+    "skeleton-css": "^2.0.4"
+  }
+}

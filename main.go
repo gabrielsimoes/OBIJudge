@@ -58,18 +58,18 @@ func main() {
 	if runCommand.Parsed() {
 		err := func() error {
 			// setup translations
-			translationsBox := rice.MustFindBox("translations")
-			if err := translationsBox.Walk("", func(path string, info os.FileInfo, _ error) error {
+			localesBox := rice.MustFindBox("locales")
+			if err := localesBox.Walk("", func(path string, info os.FileInfo, _ error) error {
 				if path == "" {
 					return nil
 				}
 
-				translationBytes, err := translationsBox.Bytes(path)
+				localeBytes, err := localesBox.Bytes(path)
 				if err != nil {
 					return err
 				}
 
-				return i18n.ParseTranslationFileBytes(path, translationBytes)
+				return i18n.ParseTranslationFileBytes(path, localeByts)
 			}); err != nil {
 				return err
 			}
