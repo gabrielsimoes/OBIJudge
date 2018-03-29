@@ -2,47 +2,52 @@ package main
 
 import "os/exec"
 
-type Language interface {
-	// Returns a name that identifies the language. e.g. C++11 / g++
-	name() string
+var (
+	LanguageRegistry = make(map[string]Language)
+)
 
-	// Extensions to be used
-	sourceExtension() string
-
-	// Whether this language requires multithreading
-	requiresMultithreading() bool
-
-	// Returns the compilation commands
-	compilationCommand(sourceFilenames []string, executableFilename string) []string
-
-	// Copies language-specific files to build directory
-	copyExtraFiles(location string) error
-
-	// Returns the evalutaion command
-	evaluationCommand(executableFilename string, args []string) []string
+func init() {
+	for _, lang := range []Language{&cpp{}} {
+		LanguageRegistry[lang.MimeType()] = lang
+	}
 }
 
-var languageRegistry = map[string]Language{
-	"cpp": &cpp{},
-	// "c":    &c{},
-	// "pas":  &pas{},
-	// "py2":  &py2{},
-	// "py3":  &py3{},
-	// "java": &java{},
+type Language interface {
+	// Returns a name that identifies the language. e.g. C++11 / g++
+	Name() string
+
+	// Extensions to be used
+	SourceExtension() string
+
+	// Mime type
+	MimeType() string
+
+	// Whether this language requires multithreading
+	RequiresMultithreading() bool
+
+	// Returns the compilation commands
+	CompilationCommand(sourceFilenames []string, executableFilename string) []string
+
+	// Copies language-specific files to build directory
+	CopyExtraFiles(location string) error
+
+	// Returns the evalutaion command
+	EvaluationCommand(executableFilename string, args []string) []string
 }
 
 type cpp struct{}
 
-func (_ *cpp) name() string                 { return "C++11 / g++" }
-func (_ *cpp) sourceExtension() string      { return ".cpp" }
-func (_ *cpp) requiresMultithreading() bool { return false }
-func (_ *cpp) compilationCommand(sourceFilenames []string, executableFilename string) []string {
+func (_ *cpp) Name() string                 { return "C++11 / g++" }
+func (_ *cpp) SourceExtension() string      { return ".cpp" }
+func (_ *cpp) MimeType() string             { return "text/x-c++src" }
+func (_ *cpp) RequiresMultithreading() bool { return false }
+func (_ *cpp) CompilationCommand(sourceFilenames []string, executableFilename string) []string {
 	path, _ := exec.LookPath("g++")
 	command := []string{path, "-DEVAL", "-std=c++11", "-O2", "-pipe", "-static", "-s", "-o", executableFilename}
 	return append(command, sourceFilenames...)
 }
-func (_ *cpp) copyExtraFiles(location string) error { return nil }
-func (_ *cpp) evaluationCommand(executableFilename string, args []string) []string {
+func (_ *cpp) CopyExtraFiles(location string) error { return nil }
+func (_ *cpp) EvaluationCommand(executableFilename string, args []string) []string {
 	return append([]string{"./" + executableFilename}, args...)
 }
 

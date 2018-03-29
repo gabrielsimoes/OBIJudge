@@ -22,7 +22,7 @@
       <form enctype="multipart/form-data" method="post" action="/task/{{.Task.Name}}">
         <div class="row">
           <label for="code">{{T "code_label"}}</label>
-          <textarea class="u-full-width code" id="code" name="code"
+          <textarea class="u-full-width" id="code" name="code"
                placeholder="{{T "insert_code"}}" style="height: 350px;"></textarea>
         </div>
 
@@ -35,13 +35,10 @@
           <div class="three columns">
             <label for="lang">{{T "language_label"}}</label>
             <select class="u-full-width" id="lang" name="lang" required>
-              <option value="cpp">C++</option>
-              <option value="c">C</option>
-              <option value="java">Java</option>
-              <option value="js">JavaScript</option>
-              <option value="pas">Pascal</option>
-              <option value="py2">Python 2</option>
-              <option value="py3">Python 3</option>
+
+          {{range $mime, $lang := .Langs}}
+              <option value="{{$mime}}">{{with $lang}}{{.Name}}{{end}}</option>
+          {{end}}
             </select>
           </div>
 
@@ -54,15 +51,5 @@
     </div>
   </div>
 </div>
-
-<script>
-$(document).ready(function() {
-  var editor = CodeMirror.fromTextArea(document.getElementById('code'), {
-    mode:  "text/x-c++src",
-    lineNumbers: true,
-    matchBrackets: true,
-  });
-})
-</script>
 
 {{template "footer.html"}}

@@ -69,7 +69,7 @@ func main() {
 					return err
 				}
 
-				return i18n.ParseTranslationFileBytes(path, localeByts)
+				return i18n.ParseTranslationFileBytes(path, localeBytes)
 			}); err != nil {
 				return err
 			}

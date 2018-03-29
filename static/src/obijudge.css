@@ -1,10 +1,14 @@
-body { font-family: "Lato", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif; }
-.container { margin-top: 40px; margin-bottom: 40px; }
-.testcase { white-space:pre; }
-.code {
-  background: #F1F1F1;
-  border: 1px solid #E1E1E1;
-  border-radius: 4px;
+body {
+  font-family: "Lato", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.container {
+  margin-top: 40px;
+  margin-bottom: 40px;
+}
+
+.testcase {
+  white-space:pre;
 }
 
 input[type="file"] {

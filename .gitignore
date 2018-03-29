@@ -5,3 +5,4 @@ OBIJudge
 main
 yarn-error.log
 node_modules
+static/dist

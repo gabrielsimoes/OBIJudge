@@ -51,7 +51,7 @@ type TaskVerdict struct {
 	TaskTitle string
 	TaskName  string
 	Code      string
-	Lang      string
+	Lang      Language
 
 	Score       int
 	Batches     []BatchVerdict
@@ -130,7 +130,7 @@ func (w *judgeWorker) start() {
 				verdict.TaskTitle = s.Task.Title
 				verdict.TaskName = s.Task.Name
 				verdict.Code = string(s.Code)
-				verdict.Lang = s.Lang.name()
+				verdict.Lang = s.Lang
 
 				fmt.Printf("%+v\n", verdict)
 				w.verdictChannel <- verdict
@@ -150,17 +150,17 @@ func (w *judgeWorker) judge(s Submission) TaskVerdict {
 	}
 	defer box.Clear()
 
-	err = s.Lang.copyExtraFiles(box.BoxPath)
+	err = s.Lang.CopyExtraFiles(box.BoxPath)
 	if err != nil {
 		return TaskVerdict{Error: true, Extra: err.Error()}
 	}
 
-	err = writeNewFile(filepath.Join(box.BoxPath, "box", s.Task.Name+s.Lang.sourceExtension()), s.Code)
+	err = writeNewFile(filepath.Join(box.BoxPath, "box", s.Task.Name+s.Lang.SourceExtension()), s.Code)
 	if err != nil {
 		return TaskVerdict{Error: true, Extra: err.Error()}
 	}
 
-	compilationCommand := s.Lang.compilationCommand([]string{s.Task.Name + s.Lang.sourceExtension()}, s.Task.Name)
+	compilationCommand := s.Lang.CompilationCommand([]string{s.Task.Name + s.Lang.SourceExtension()}, s.Task.Name)
 	var compilationOutput bytes.Buffer
 	compilationResult := box.Run(&BoxConfig{
 		Path:          compilationCommand[0],
@@ -218,7 +218,7 @@ func (w *judgeWorker) judge(s Submission) TaskVerdict {
 		for _, i := range batch.Tests {
 			test := tests[i]
 			if results[i].code == RESULT_NOTHING {
-				command := s.Lang.evaluationCommand(s.Task.Name, nil)
+				command := s.Lang.EvaluationCommand(s.Task.Name, nil)
 				var output bytes.Buffer
 				result := box.Run(&BoxConfig{
 					Path:          command[0],

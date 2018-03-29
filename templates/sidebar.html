@@ -1,5 +1,5 @@
 <div class="one-third column">
-  <div class="row" style="text-align:center; margin: 10px 0">
+  <div class="row" style="margin: 10px 0">
     {{template "logo.html"}}
   </div>
 
@@ -7,7 +7,7 @@
     <a href="/overview" class="button u-full-width {{if eq .PageID "_overview"}}button-primary{{end}}">
       {{T "overview"}}
     </a>
-    <form method="post" action="/logout">
+    <form method="post" action="/logout" style="margin-bottom:0;">
       <input class="button u-full-width" type="submit" name="logout" value="{{T "logout"}}" />
     </form>
   </div>

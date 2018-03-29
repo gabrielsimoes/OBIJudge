@@ -266,6 +266,7 @@ func (srv *Server) taskHandler(s *Session, w http.ResponseWriter, r *http.Reques
 		"HasPDF":        len(statement.PDF) > 0,
 		"HasHTML":       len(statement.HTML) > 0,
 		"HTMLStatement": template.HTML(string(statement.HTML)),
+		"Langs":         LanguageRegistry,
 	}, http.StatusOK)
 }
 
@@ -302,7 +303,7 @@ func (srv *Server) submitHandler(s *Session, w http.ResponseWriter, r *http.Requ
 		code = []byte(r.Form.Get("code"))
 	}
 
-	lang, ok := languageRegistry[r.Form.Get("lang")]
+	lang, ok := LanguageRegistry[r.Form.Get("lang")]
 	if !ok {
 		err = errors.New("Language " + r.Form.Get("lang") + " doesn't have a runner!")
 		srv.errorHandler(err, w, r)
