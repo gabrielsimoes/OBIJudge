@@ -19,18 +19,24 @@ const (
 	appErrorMessage = "[OBIJUDGE] "
 )
 
+var (
+	testingFlag bool
+)
+
 func main() {
 	runCommand := flag.NewFlagSet("run", flag.ExitOnError)
 	builddbCommand := flag.NewFlagSet("builddb", flag.ExitOnError)
 
-	portPtr := runCommand.Int("port", 8080, "Port where interface will listen (localhost-only")
+	portPtr := runCommand.Int("port", 80, "Port where interface will listen (localhost-only")
 	databasePtr := runCommand.String("database", "contests.zip", "Contests database file")
 	referencePtr := runCommand.String("reference", "reference.zip", "File where language reference is stored")
 	workersPtr := runCommand.Int("workers", 2, "Number of simultaneous judge workers")
+	runCommand.BoolVar(&testingFlag, "testing", false, "Whether to use testing features or not (no authentication, reads password from ./pass file, uses judge_test as the contest, uses testing cookies session, prints debug messages)")
 
 	sourcePtr := builddbCommand.String("source", "contests", "Folder where contests data is located")
 	targetPtr := builddbCommand.String("target", "contests.zip", "File where the database will be created (erases if already exists)")
 	passwordPtr := builddbCommand.String("password", "", "16 letters password to encrypt database (will generate one if empty)")
+	writePasswordPtr := builddbCommand.Bool("writepassword", false, "Write password to ./pass file.")
 
 	if len(os.Args) < 2 {
 		fmt.Printf(appHelp, os.Args[0])
@@ -115,7 +121,7 @@ func main() {
 	}
 
 	if builddbCommand.Parsed() {
-		err := BuildDatabase(*sourcePtr, *targetPtr, []byte(*passwordPtr))
+		err := BuildDatabase(*sourcePtr, *targetPtr, []byte(*passwordPtr), *writePasswordPtr)
 		if err != nil {
 			logger.Fatal(err)
 		}

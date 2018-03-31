@@ -272,7 +272,7 @@ func (db *Database) Tests(name string, key []byte) ([]TestData, error) {
 	return tests, err
 }
 
-func BuildDatabase(source, target string, password []byte) error {
+func BuildDatabase(source, target string, password []byte, writePassword bool) error {
 	source = filepath.Clean(source)
 	target = filepath.Clean(target)
 
@@ -298,6 +298,10 @@ func BuildDatabase(source, target string, password []byte) error {
 	}
 
 	fmt.Printf("Files encrypted with the key: '%s' (write it down!)\n", password)
+
+	if writePassword {
+		ioutil.WriteFile("pass", password, 0644)
+	}
 
 	// now lets store this key's hash in our database
 	hash, err := bcrypt.GenerateFromPassword(password, 14)

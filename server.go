@@ -35,9 +35,13 @@ type Server struct {
 
 func (srv *Server) Start() error {
 	// setup session storage
-	randString, _ := generateKey(10)
-	srv.sessionManager = NewSessionManager(srv.Judge.VerdictChannel,
-		"obijudge-"+string(randString))
+	if testingFlag {
+		srv.sessionManager = NewSessionManager(srv.Judge.VerdictChannel, "obijudge-testing")
+	} else {
+		randBytes, _ := generateKey(10)
+		srv.sessionManager = NewSessionManager(srv.Judge.VerdictChannel,
+			"obijudge-"+string(randBytes))
+	}
 
 	// setup templates
 	srv.templates = template.New("")
@@ -86,7 +90,7 @@ func (srv *Server) Start() error {
 
 	// setup http.Server
 	srv.server = &http.Server{
-		Addr:    "0.0.0.0" + ":" + strconv.Itoa(srv.Port),
+		Addr:    ":" + strconv.Itoa(srv.Port),
 		Handler: srv.loggingWrapper(srv.localeWrapper(r)),
 	}
 
