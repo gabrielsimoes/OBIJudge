@@ -3,7 +3,15 @@
         "Name": "judge_test",
         "Title": "Judge Test Contest",
         "Tasks": [
-            "inout"
+            "inout",
+            "sieve"
+        ]
+    },
+    {
+        "Name": "love_primes",
+        "Title": "\u1F495 Primes",
+        "Tasks": [
+            "sieve"
         ]
     }
 ]
