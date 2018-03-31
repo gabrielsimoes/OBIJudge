@@ -132,7 +132,9 @@ func (w *judgeWorker) start() {
 				verdict.Code = string(s.Code)
 				verdict.Lang = s.Lang
 
-				fmt.Printf("%+v\n", verdict)
+				if testingFlag {
+					fmt.Printf("%+v\n\n", verdict)
+				}
 				w.verdictChannel <- verdict
 			}
 		}
@@ -173,6 +175,10 @@ func (w *judgeWorker) judge(s Submission) TaskVerdict {
 		CPUTimeLimit:  2 * time.Minute,
 		WallTimeLimit: 2 * time.Minute,
 	})
+
+	if testingFlag {
+		fmt.Printf("Compilation: %+v %s\n\n", compilationResult, compilationOutput)
+	}
 
 	var ret TaskVerdict
 
@@ -231,6 +237,11 @@ func (w *judgeWorker) judge(s Submission) TaskVerdict {
 					CPUTimeLimit:  time.Duration(s.Task.TimeLimit) * time.Millisecond,
 					WallTimeLimit: time.Duration(s.Task.TimeLimit) * time.Millisecond,
 				})
+
+				if testingFlag {
+					fmt.Printf("Test %d: %+v\n\n", i, result)
+					fmt.Printf("Input: %s Output %s\n", string(test.Input), output.String())
+				}
 
 				if result.Status == STATUS_ERR {
 					return TaskVerdict{Error: true, Extra: result.Error}
