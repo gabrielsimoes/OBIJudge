@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 SOURCES := $(shell find . -type f -name '*.go')
-BINARY := obijudge
+BINARY := OBIJudge
 
 VERSION := 0.1
 BUILD := `git rev-parse HEAD`
