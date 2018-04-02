@@ -4,6 +4,7 @@ var csso = require('gulp-csso');
 var concat = require('gulp-concat');
 var uglify = require('gulp-uglify');
 var sourcemaps = require("gulp-sourcemaps");
+var htmlmin = require('gulp-htmlmin');
 var googleWebFonts = require('gulp-google-webfonts')
 var clean = require('gulp-clean');
 var ifEnv = require('gulp-if-env');
@@ -91,7 +92,24 @@ gulp.task('static:images', function() {
     .pipe(gulp.dest('static/dist'))
 });
 
-gulp.task('static:build', ['static:js', 'static:css', 'static:fonts', 'static:images']);
+gulp.task('static:templates', function(){
+    return gulp.src([
+        'templates/src/*.html'
+    ])
+    .pipe(ifEnv('production', htmlmin({
+      caseSensitive: true,
+      collapseWhitespace: true,
+      ignoreCustomFragments: [
+        /{{.*?}}/,
+      ],
+      minifyCSS: true,
+      minifyJS: true,
+      removeComments: true,
+    })))
+    .pipe(gulp.dest('templates/dist'));
+})
+
+gulp.task('static:build', ['static:js', 'static:css', 'static:fonts', 'static:images', 'static:templates']);
 
 gulp.task('go:build', function (cb) {
   child.exec('go build', function (err, stdout, stderr) {
@@ -143,8 +161,8 @@ gulp.task('spawn', function() {
 gulp.task('watch-spawn', function() {
   gulp.watch([
     'static/dist/*',
+    'templates/dist/*',
     'locales/*',
-    'templates/*',
     'OBIJudge',
   ], ['spawn']);
 })
@@ -152,14 +170,14 @@ gulp.task('watch-spawn', function() {
 gulp.task('watch-static', function() {
   gulp.watch([
     'static/src/*',
-    'gulpfile.js',
+    'templates/src/*',
     'yarn.lock',
     'package.json',
   ], ['static:build']);
 });
 
 gulp.task('clean', function() {
-    return gulp.src(['static/dist', 'OBIJudge']).pipe(clean());
+    return gulp.src(['static/dist', 'templates/dist', 'OBIJudge']).pipe(clean());
 })
 
 gulp.task('build', sync(['clean', 'static:build', 'go:build', 'go:rice']));

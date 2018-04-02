@@ -45,7 +45,7 @@ func (srv *Server) Start() error {
 
 	// setup templates
 	srv.templates = template.New("")
-	templateBox := rice.MustFindBox("templates")
+	templateBox := rice.MustFindBox("templates/dist")
 	if err := templateBox.Walk("", func(path string, _ os.FileInfo, _ error) error {
 		if path == "" {
 			return nil
@@ -76,7 +76,7 @@ func (srv *Server) Start() error {
 
 	// load static files and serve
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/",
-		http.FileServer(rice.MustFindBox("static").HTTPBox())))
+		http.FileServer(rice.MustFindBox("static/dist").HTTPBox())))
 
 	r.HandleFunc("/", srv.homeHandler).Methods("GET")
 	r.HandleFunc("/login", srv.loginHandler).Methods("POST")
