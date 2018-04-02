@@ -8,7 +8,7 @@
       {{T "overview"}}
     </a>
     <form method="post" action="/logout" style="margin-bottom:0;">
-      <input class="button u-full-width" type="submit" name="logout" value="{{T "logout"}}" />
+      <input class="button u-full-width" type="submit" name="logout" value="{{T " logout "}}" />
     </form>
   </div>
 
@@ -17,14 +17,12 @@
     {{range .Tasks}}
     <a href="/task/{{.Name}}" class="button u-full-width {{if eq $.PageID .Name}}button-primary{{end}}">
       {{.Title}}
-    </a>
-    {{end}}
+    </a> {{end}}
   </div>
 
   <div class="row">
     <h4>{{T "documentation"}}</h4>
-      {{range .Refs}}
-        <a class="button" href="/ref/{{.Name}}/{{.Index}}">{{.Title}}</a>
-      {{end}}
+    {{range .Refs}}
+    <a class="button" href="/ref/{{.Name}}/{{.Index}}">{{.Title}}</a> {{end}}
   </div>
 </div>

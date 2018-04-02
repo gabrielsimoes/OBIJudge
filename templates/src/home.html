@@ -1,25 +1,11 @@
 {{template "header.html" T "login"}}
 
 <div class="container">
-  <div class="one-third column"
-       style="position: absolute;
-              top: 50%;
-              left: 50%;
-              -webkit-transform: translateY(50%) translateX(-50%);
-                  -ms-transform: translateY(50%) translateX(-50%);
-                      transform: translateY(50%) translateX(-50%);
-              text-align:center;">
-
+  <div class="one-third column centered">
     <div class="row" style="margin: 10px 0">{{template "logo.html"}}</div>
 
     {{if eq .WrongPassword "true"}}
-    <div class="row"
-         style="border-radius: 4px;
-         height: 30px;
-         line-height: 30px;
-         margin-bottom: 15px;
-         background: #f2dede;
-         color: #b94a48;">
+    <div class="row error-block">
       <p class="u-full-width">{{T "invalid_password"}}</p>
     </div>
     {{end}}

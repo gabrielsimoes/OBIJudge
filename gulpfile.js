@@ -13,7 +13,7 @@ var sync = require('gulp-sync')(gulp).sync;
 var reload = require('gulp-livereload');
 var util = require('gulp-util');
 var plumber = require('gulp-plumber');
-var notifier   = require('node-notifier');
+var notifier = require('node-notifier');
 var child = require('child_process');
 var sudo = require('sudo');
 
@@ -28,26 +28,25 @@ gulp.src = function() {
         title: 'Error (' + error.plugin + ')',
         message: error.message.split('\n')[0]
       });
-    })
-  );
+    }));
 };
 
-gulp.task('static:js', function(){
-    return gulp.src([
-        'node_modules/jquery/dist/jquery.js',
+gulp.task('static:js', function() {
+  return gulp.src([
+      'node_modules/jquery/dist/jquery.js',
 
-        'node_modules/katex/dist/katex.js',
-        'node_modules/katex/dist/contrib/auto-render.js',
+      'node_modules/katex/dist/katex.js',
+      'node_modules/katex/dist/contrib/auto-render.js',
 
-        'node_modules/codemirror/lib/codemirror.js',
-        'node_modules/codemirror/addon/display/placeholder.js',
-        'node_modules/codemirror/addon/edit/matchbrackets.js',
-        'node_modules/codemirror/mode/clike/clike.js',
-        'node_modules/codemirror/mode/python/python.js',
-        'node_modules/codemirror/mode/pascal/pascal.js',
-        'node_modules/codemirror/mode/javascript/javascript.js',
+      'node_modules/codemirror/lib/codemirror.js',
+      'node_modules/codemirror/addon/display/placeholder.js',
+      'node_modules/codemirror/addon/edit/matchbrackets.js',
+      'node_modules/codemirror/mode/clike/clike.js',
+      'node_modules/codemirror/mode/python/python.js',
+      'node_modules/codemirror/mode/pascal/pascal.js',
+      'node_modules/codemirror/mode/javascript/javascript.js',
 
-        'static/src/*.js'
+      'static/src/*.js'
     ])
     .pipe(ifEnv.not('production', sourcemaps.init()))
     .pipe(concat('obijudge.js'))
@@ -56,45 +55,47 @@ gulp.task('static:js', function(){
     .pipe(gulp.dest('static/dist'));
 })
 
-gulp.task('static:css', function(){
-    return gulp.src([
-        'node_modules/normalize.css/normalize.css',
-        'node_modules/skeleton-css/css/skeleton.css',
-        'node_modules/codemirror/lib/codemirror.css',
-        'node_modules/katex/dist/katex.css',
-        'static/src/*.css'
+gulp.task('static:css', function() {
+  return gulp.src([
+      'node_modules/normalize.css/normalize.css',
+      'node_modules/skeleton-css/css/skeleton.css',
+      'node_modules/codemirror/lib/codemirror.css',
+      'node_modules/katex/dist/katex.css',
+      'static/src/*.css'
     ])
     .pipe(ifEnv.not('production', sourcemaps.init()))
-    .pipe(ifEnv('production', csso({comments: false})))
+    .pipe(ifEnv('production', csso({
+      comments: false
+    })))
     .pipe(concat('obijudge.css'))
     .pipe(ifEnv.not('production', sourcemaps.write()))
     .pipe(gulp.dest('static/dist'));
 })
 
 gulp.task('static:fonts', function() {
-    var google = gulp.src('static/src/fonts.list')
-        .pipe(googleWebFonts({
-            fontsDir: 'fonts',
-            cssDir: './',
-            cssFilename: 'fonts.css',
-            format: 'woff',
-        }))
-        .pipe(gulp.dest('static/dist'));
+  var google = gulp.src('static/src/fonts.list')
+    .pipe(googleWebFonts({
+      fontsDir: 'fonts',
+      cssDir: './',
+      cssFilename: 'fonts.css',
+      format: 'woff',
+    }))
+    .pipe(gulp.dest('static/dist'));
 
-    var katex = gulp.src('node_modules/katex/dist/fonts/*.woff*')
-            .pipe(gulp.dest('static/dist/fonts'));
+  var katex = gulp.src('node_modules/katex/dist/fonts/*.woff*')
+    .pipe(gulp.dest('static/dist/fonts'));
 
-    return merge(google, katex);
+  return merge(google, katex);
 });
 
 gulp.task('static:images', function() {
-    return gulp.src(['static/src/obi.ico', 'static/src/obi.svg'])
+  return gulp.src(['static/src/obi.ico', 'static/src/obi.svg'])
     .pipe(gulp.dest('static/dist'))
 });
 
-gulp.task('static:templates', function(){
-    return gulp.src([
-        'templates/src/*.html'
+gulp.task('static:templates', function() {
+  return gulp.src([
+      'templates/src/*.html'
     ])
     .pipe(ifEnv('production', htmlmin({
       caseSensitive: true,
@@ -111,8 +112,8 @@ gulp.task('static:templates', function(){
 
 gulp.task('static:build', ['static:js', 'static:css', 'static:fonts', 'static:images', 'static:templates']);
 
-gulp.task('go:build', function (cb) {
-  child.exec('go build', function (err, stdout, stderr) {
+gulp.task('go:build', function(cb) {
+  child.exec('go build', function(err, stdout, stderr) {
     console.log(stdout);
     console.log(stderr);
     cb(err);
@@ -121,7 +122,7 @@ gulp.task('go:build', function (cb) {
 
 gulp.task('go:rice', function(cb) {
   if (process.env.NODE_ENV === 'production') {
-    child.exec('rice append --exec=OBIJudge', function (err, stdout, stderr) {
+    child.exec('rice append --exec=OBIJudge', function(err, stdout, stderr) {
       console.log(stdout);
       console.log(stderr);
       cb(err);
@@ -138,7 +139,7 @@ gulp.task('spawn', function() {
   var cmd = './OBIJudge'
   var args = ['run']
   if (process.env.NODE_ENV !== 'production') {
-      args.push('-testing')
+    args.push('-testing')
   }
   server = child.spawn(cmd, args);
 
@@ -177,7 +178,7 @@ gulp.task('watch-static', function() {
 });
 
 gulp.task('clean', function() {
-    return gulp.src(['static/dist', 'templates/dist', 'OBIJudge']).pipe(clean());
+  return gulp.src(['static/dist', 'templates/dist', 'OBIJudge']).pipe(clean());
 })
 
 gulp.task('build', sync(['clean', 'static:build', 'go:build', 'go:rice']));

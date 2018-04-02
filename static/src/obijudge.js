@@ -1,15 +1,28 @@
 $(document).ready(function() {
   renderMathInElement(document.body, {
-    delimiters: [
-      {left: "$$", right: "$$", display: true},
-      {left: "\\[", right: "\\]", display: true},
-      {left: "$", right: "$", display: false},
-      {left: "\\(", right: "\\)", display: false}
+    delimiters: [{
+        left: "$$",
+        right: "$$",
+        display: true
+      },
+      {
+        left: "\\[",
+        right: "\\]",
+        display: true
+      },
+      {
+        left: "$",
+        right: "$",
+        display: false
+      },
+      {
+        left: "\\(",
+        right: "\\)",
+        display: false
+      }
     ]
   });
-});
 
-$(document).ready(function() {
   $('textarea#editor').each(function() {
     var lang = $(this).attr('lang');
     var template = $('#code_template').clone();
@@ -28,9 +41,8 @@ $(document).ready(function() {
   });
 
   var editor = CodeMirror.fromTextArea(document.getElementById('code'), {
-    mode:  "text/x-c++src",
+    mode: "text/x-c++src",
     lineNumbers: true,
     matchBrackets: true,
   });
 });
-
