@@ -165,6 +165,7 @@ gulp.task('watch-spawn', function() {
     'templates/dist/*',
     'locales/*',
     'OBIJudge',
+    'contests.zip',
   ], ['spawn']);
 })
 
