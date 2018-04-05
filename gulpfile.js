@@ -34,13 +34,20 @@ gulp.src = function() {
 gulp.task('static:js', function() {
   return gulp.src([
       'node_modules/jquery/dist/jquery.js',
-
       'node_modules/katex/dist/katex.js',
       'node_modules/katex/dist/contrib/auto-render.js',
+      'node_modules/clipboard/dist/clipboard.js',
+      'node_modules/toastr/toastr.js',
 
       'node_modules/codemirror/lib/codemirror.js',
-      'node_modules/codemirror/addon/display/placeholder.js',
+      'node_modules/codemirror/addon/dialog/dialog.js',
+      'node_modules/codemirror/addon/search/search.js',
+      'node_modules/codemirror/addon/search/searchcursor.js',
+      'node_modules/codemirror/addon/search/jump-to-line.js',
+      'node_modules/codemirror/addon/search/match-highlighter.js',
       'node_modules/codemirror/addon/edit/matchbrackets.js',
+      'node_modules/codemirror/addon/edit/closebrackets.js',
+      'node_modules/codemirror/addon/display/placeholder.js',
       'node_modules/codemirror/mode/clike/clike.js',
       'node_modules/codemirror/mode/python/python.js',
       'node_modules/codemirror/mode/pascal/pascal.js',
@@ -59,8 +66,11 @@ gulp.task('static:css', function() {
   return gulp.src([
       'node_modules/normalize.css/normalize.css',
       'node_modules/skeleton-css/css/skeleton.css',
-      'node_modules/codemirror/lib/codemirror.css',
       'node_modules/katex/dist/katex.css',
+      'node_modules/toastr/build/toastr.css',
+      'node_modules/codemirror/lib/codemirror.css',
+      'node_modules/codemirror/addon/dialog/dialog.css',
+
       'static/src/*.css'
     ])
     .pipe(ifEnv.not('production', sourcemaps.init()))

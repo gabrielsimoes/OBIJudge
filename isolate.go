@@ -33,7 +33,7 @@ const (
 	BOX_FIRST_GID = 60000
 	BOX_ROOT      = "/obibox"
 	BOX_NUM_LIMIT = 2
-	BOX_IMG_SIZE  = 64 << 20 // 64 MB
+	BOX_IMG_SIZE  = 10 << 20 // 10 MB
 
 	ERR_CHILD_FAILED = 42
 )

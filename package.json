@@ -8,6 +8,7 @@
   "license": "AGPL-3.0",
   "private": true,
   "devDependencies": {
+    "clipboard": "^2.0.0",
     "codemirror": "^5.36.0",
     "dotenv": "^5.0.1",
     "gulp": "^3.9.1",
@@ -29,6 +30,7 @@
     "node-notifier": "^5.2.1",
     "normalize.css": "^8.0.0",
     "skeleton-css": "^2.0.4",
-    "sudo": "^1.0.3"
+    "sudo": "^1.0.3",
+    "toastr": "^2.1.4"
   }
 }

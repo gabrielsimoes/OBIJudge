@@ -1,7 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
+	"html"
 	"html/template"
 	"io/ioutil"
 	"log"
@@ -36,12 +39,13 @@ type Server struct {
 func (srv *Server) Start() error {
 	// setup session storage
 	if testingFlag {
-		srv.sessionManager = NewSessionManager(srv.Judge.VerdictChannel, "obijudge-testing")
+		srv.sessionManager = NewSessionManager(srv.Judge.TaskVerdictChannel, srv.Judge.TestVerdictChannel, "obijudge-testing")
 	} else {
 		randBytes, _ := generateKey(10)
-		srv.sessionManager = NewSessionManager(srv.Judge.VerdictChannel,
-			"obijudge-"+string(randBytes))
+		srv.sessionManager = NewSessionManager(srv.Judge.TaskVerdictChannel, srv.Judge.TestVerdictChannel, "obijudge-"+string(randBytes))
 	}
+
+	srv.sessionManager.StartWatcher()
 
 	// setup templates
 	srv.templates = template.New("")
@@ -78,15 +82,18 @@ func (srv *Server) Start() error {
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/",
 		http.FileServer(rice.MustFindBox("static/dist").HTTPBox())))
 
+	// string translation api
+	r.HandleFunc("/translate", srv.translateHandler).Methods("GET")
+
 	r.HandleFunc("/", srv.homeHandler).Methods("GET")
 	r.HandleFunc("/login", srv.loginHandler).Methods("POST")
 	r.HandleFunc("/logout", srv.logoutHandler).Methods("POST")
 
 	r.Handle("/overview", srv.authWrapper(srv.overviewHandler)).Methods("GET")
-	r.Handle("/status", srv.authWrapper(srv.statusHandler)).Methods("GET")
 	r.Handle("/task/{name}.pdf", srv.authWrapper(srv.pdfHandler)).Methods("GET")
 	r.Handle("/task/{name}", srv.authWrapper(srv.taskHandler)).Methods("GET")
-	r.Handle("/task/{name}", srv.authWrapper(srv.submitHandler)).Methods("POST")
+	r.Handle("/submit/{name}", srv.authWrapper(srv.submitHandler)).Methods("POST")
+	// r.Handle("/test", srv.authWrapper(srv.testHandler)).Methods("POST")
 
 	// setup http.Server
 	srv.server = &http.Server{
@@ -108,6 +115,8 @@ func (srv *Server) Stop() {
 	if err := srv.server.Shutdown(nil); err != nil {
 		panic(err)
 	}
+
+	srv.sessionManager.StopWatcher()
 }
 
 func (srv *Server) getLang(r *http.Request) (i18n.TranslateFunc, error) {
@@ -188,6 +197,17 @@ func (srv *Server) loginHandler(w http.ResponseWriter, r *http.Request) {
 func (srv *Server) logoutHandler(w http.ResponseWriter, r *http.Request) {
 	srv.sessionManager.DeleteSession(w, r)
 	http.Redirect(w, r, "/", http.StatusFound)
+}
+
+// translateHandler: translates a string
+func (srv *Server) translateHandler(w http.ResponseWriter, r *http.Request) {
+	T, err := srv.getLang(r)
+	if err != nil {
+		srv.Logger.Print(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	w.Write([]byte(html.EscapeString(T(r.FormValue("str")))))
 }
 
 func (srv *Server) homeHandler(w http.ResponseWriter, r *http.Request) {
@@ -275,31 +295,42 @@ func (srv *Server) taskHandler(s *Session, w http.ResponseWriter, r *http.Reques
 }
 
 func (srv *Server) submitHandler(s *Session, w http.ResponseWriter, r *http.Request) {
+	type result struct {
+		Error string
+		ID    uint32
+	}
+
 	vars := mux.Vars(r)
 	name := vars["name"]
 
+	encoder := json.NewEncoder(w)
+
 	task, err := srv.DB.Task(name)
 	if err != nil {
-		srv.errorHandler(err, w, r)
+		w.WriteHeader(http.StatusInternalServerError)
+		encoder.Encode(result{err.Error(), 0})
 		return
 	}
 
 	err = r.ParseMultipartForm(32 << 20)
 	if err != nil {
-		srv.errorHandler(err, w, r)
+		w.WriteHeader(http.StatusInternalServerError)
+		encoder.Encode(result{err.Error(), 0})
 		return
 	}
 
 	file, _, err := r.FormFile("file")
 	if err != nil {
-		srv.errorHandler(err, w, r)
+		w.WriteHeader(http.StatusInternalServerError)
+		encoder.Encode(result{err.Error(), 0})
 		return
 	}
 	defer file.Close()
 
 	code, err := ioutil.ReadAll(file)
 	if err != nil {
-		srv.errorHandler(err, w, r)
+		w.WriteHeader(http.StatusInternalServerError)
+		encoder.Encode(result{err.Error(), 0})
 		return
 	}
 
@@ -309,21 +340,20 @@ func (srv *Server) submitHandler(s *Session, w http.ResponseWriter, r *http.Requ
 
 	lang, ok := LanguageRegistry[r.Form.Get("lang")]
 	if !ok {
-		err = errors.New("Language " + r.Form.Get("lang") + " doesn't have a runner!")
-		srv.errorHandler(err, w, r)
+		w.WriteHeader(http.StatusInternalServerError)
+		encoder.Encode(result{"Language " + r.Form.Get("lang") + " doesn't have a runner!", 0})
 		return
 	}
 
-	srv.Judge.SubmissionChannel <- Submission{
+	subID := srv.Judge.SendSubmission(Submission{
 		SID:  s.GetID(),
 		When: time.Now(),
 		Task: &task,
 		Code: code,
 		Lang: lang,
 		Key:  s.GetPassword(),
-	}
-
-	http.Redirect(w, r, "/", http.StatusFound)
+	})
+	fmt.Println(encoder.Encode(result{"", subID}))
 }
 
 func (srv *Server) pdfHandler(s *Session, w http.ResponseWriter, r *http.Request) {
@@ -337,26 +367,6 @@ func (srv *Server) pdfHandler(s *Session, w http.ResponseWriter, r *http.Request
 	}
 
 	if len(statement.PDF) > 0 {
-		w.Write(statement.PDF)
-	} else {
-		err = errors.New("No PDF problem statement for " + name + ".")
-		srv.errorHandler(err, w, r)
-	}
-}
-
-func (srv *Server) statusHandler(s *Session, w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	name := vars["name"]
-
-	statement, err := srv.DB.Statement(name, s.GetPassword())
-	if err != nil {
-		srv.errorHandler(err, w, r)
-		return
-	}
-
-	if len(statement.PDF) > 0 {
-		w.Header().Set("Content-Disposition", "attachment; filename="+name+".pdf")
-		w.Header().Set("Content-Type", r.Header.Get("Content-Type"))
 		w.Write(statement.PDF)
 	} else {
 		err = errors.New("No PDF problem statement for " + name + ".")

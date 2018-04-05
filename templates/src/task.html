@@ -7,7 +7,7 @@
         <div class="row">
             <h2>{{.Task.Title}}</h2>
             {{if .HasHTML}}
-            {{.HTMLStatement}}
+                {{.HTMLStatement}}
             {{end}}
 
             {{if .HasPDF}}
@@ -19,10 +19,10 @@
 
         <div class="row">
             <h3>{{T "send_label"}}</h3>
-            <form enctype="multipart/form-data" method="post" action="/task/{{.Task.Name}}">
+            <form enctype="multipart/form-data" method="post" action="/submit/{{.Task.Name}}">
                 <div class="row">
                     <label for="code">{{T "code_label"}}</label>
-                    <textarea class="u-full-width code-editor" id="code" name="code" placeholder="{{T "insert_code"}}"></textarea>
+                    <textarea class="u-full-width editor" id="code" name="code" placeholder="{{T "insert_code"}}"></textarea>
                 </div>
 
                 <div class="row">
@@ -42,12 +42,24 @@
 
                     <div class="three columns">
                         <label for="submit">&nbsp;</label>
-                        <input class="button-primary u-full-width" id="submit" type="submit" value="{{T "send_label"}}">
+                        <input type="submit" class="button-primary u-full-width" id="submit" name="submit" value="{{T "send_label"}}">
                     </div>
+                </div>
+
+                <div class="row">
+                    <input type="checkbox" id="custom-input">
+                    <span class="label-body">{{T "use_custom_input"}}</span>
+                </div>
+
+                <div class="row" id="customInputOutput">
+                    <textarea class="one-half column editor" id="input" name="input" placeholder="{{T "insert_custom_input"}}"></textarea>
+                    <textarea class="one-half column editor" id="output" name="output" placeholder="{{T "output_will_appear_here"}}" readonly></textarea>
                 </div>
             </form>
         </div>
     </div>
 </div>
+
+<script>$(setupTaskPage());</script>
 
 {{template "footer.html"}}

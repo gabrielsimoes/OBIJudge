@@ -122,5 +122,13 @@
 	{
 		"id": "result_code_8",
 		"translation": "ERRO!"
+	},
+	{
+		"id": "copy",
+		"translation": "Copiar"
+	},
+	{
+		"id": "test_case_copied",
+		"translation": "Caso de teste copiado!"
 	}
 ]

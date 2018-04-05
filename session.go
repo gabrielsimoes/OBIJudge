@@ -11,22 +11,25 @@ import (
 )
 
 type SessionManager struct {
-	lock           sync.Mutex
-	cookieName     string
-	sessions       map[string]*Session
-	verdictChannel <-chan TaskVerdict
-	secureCookie   *securecookie.SecureCookie
+	cookieName         string
+	sessions           map[string]*Session
+	secureCookie       *securecookie.SecureCookie
+	taskVerdictChannel <-chan TaskVerdict
+	testVerdictChannel <-chan CustomTestVerdict
+	watcherStopChannel chan bool
+	lock               sync.Mutex
 }
 
 type Session struct {
-	id       string
-	password []byte
-	contest  string
-
-	lock sync.Mutex
+	sid          string
+	password     []byte
+	contest      string
+	taskVerdicts []TaskVerdict
+	testVerdicts []CustomTestVerdict
+	lock         sync.Mutex
 }
 
-func NewSessionManager(verdictChannel <-chan TaskVerdict, cookieName string) *SessionManager {
+func NewSessionManager(taskVerdictChannel <-chan TaskVerdict, testVerdictChannel <-chan CustomTestVerdict, cookieName string) *SessionManager {
 	var hashKey, blockKey []byte
 	if testingFlag {
 		hashKey = []byte("testing-key")
@@ -37,13 +40,52 @@ func NewSessionManager(verdictChannel <-chan TaskVerdict, cookieName string) *Se
 	}
 
 	m := &SessionManager{
-		cookieName:     cookieName,
-		sessions:       make(map[string]*Session),
-		verdictChannel: verdictChannel,
-		secureCookie:   securecookie.New(hashKey, blockKey),
+		cookieName:         cookieName,
+		sessions:           make(map[string]*Session),
+		taskVerdictChannel: taskVerdictChannel,
+		testVerdictChannel: testVerdictChannel,
+		secureCookie:       securecookie.New(hashKey, blockKey),
 	}
 
 	return m
+}
+
+func (m *SessionManager) StartWatcher() {
+	if m.watcherStopChannel != nil {
+		return
+	}
+
+	m.watcherStopChannel = make(chan bool)
+	go func() {
+		select {
+		case <-m.watcherStopChannel:
+			return
+		case v := <-m.taskVerdictChannel:
+			m.lock.Lock()
+			if session, ok := m.sessions[v.SID]; ok {
+				session.lock.Lock()
+				session.taskVerdicts = append(session.taskVerdicts, v)
+				session.lock.Unlock()
+			}
+			m.lock.Unlock()
+		case v := <-m.testVerdictChannel:
+			m.lock.Lock()
+			if session, ok := m.sessions[v.SID]; ok {
+				session.lock.Lock()
+				session.testVerdicts = append(session.testVerdicts, v)
+				session.lock.Unlock()
+			}
+			m.lock.Unlock()
+		}
+	}()
+}
+
+func (m *SessionManager) StopWatcher() {
+	if m.watcherStopChannel == nil {
+		return
+	}
+
+	m.watcherStopChannel <- true
 }
 
 func (m *SessionManager) getSessionID(r *http.Request) string {
@@ -99,7 +141,7 @@ func (m *SessionManager) OpenSession(w http.ResponseWriter, r *http.Request) (*S
 	}
 
 	session := &Session{
-		id: string(sid),
+		sid: string(sid),
 	}
 
 	if testingFlag {
@@ -136,7 +178,7 @@ func (s *Session) GetID() string {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	return s.id
+	return s.sid
 }
 
 func (s *Session) GetPassword() []byte {

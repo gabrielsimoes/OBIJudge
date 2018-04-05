@@ -7,7 +7,7 @@ var (
 )
 
 func init() {
-	for _, lang := range []Language{&cpp{}} {
+	for _, lang := range []Language{&cpp{}, &pas{}} {
 		LanguageRegistry[lang.MimeType()] = lang
 	}
 }
@@ -37,7 +37,7 @@ type Language interface {
 
 type cpp struct{}
 
-func (_ *cpp) Name() string                 { return "C++11 / g++" }
+func (_ *cpp) Name() string                 { return "C++11 (g++)" }
 func (_ *cpp) SourceExtension() string      { return ".cpp" }
 func (_ *cpp) MimeType() string             { return "text/x-c++src" }
 func (_ *cpp) RequiresMultithreading() bool { return false }
@@ -63,25 +63,21 @@ func (_ *cpp) EvaluationCommand(executableFilename string, args []string) []stri
 //	return cmd.Run()
 //}
 
-//// Pascal
-//type pas struct{}
+type pas struct{}
 
-//func (_ *pas) sourceName(taskname string) string {
-//	return taskname + ".pas"
-//}
-
-//func (_ *pas) prepare(dir, taskname string) error {
-//	cmd := exec.Command("fpc", "-XS", "-Xt", "-O2", dir+"/"+taskname+".pas")
-//	// var outb, errb bytes.Buffer
-//	// cmd.Stdout = &outb
-//	// cmd.Stderr = &errb
-//	// err := cmd.Run()
-//	// if outb.Len() > 0 || errb.Len() > 0 {
-//	// 	fmt.Println(outb.String(), errb.String())
-//	// }
-//	// return err
-//	return cmd.Run()
-//}
+func (_ *pas) Name() string                 { return "Pascal (fpc)" }
+func (_ *pas) SourceExtension() string      { return ".pas" }
+func (_ *pas) MimeType() string             { return "text/x-pascal" }
+func (_ *pas) RequiresMultithreading() bool { return false }
+func (_ *pas) CompilationCommand(sourceFilenames []string, executableFilename string) []string {
+	path, _ := exec.LookPath("fpc")
+	command := []string{path, "-dEVAL", "-XS", "-Xt", "-O2", "-o" + executableFilename}
+	return append(command, sourceFilenames[0])
+}
+func (_ *pas) CopyExtraFiles(location string) error { return nil }
+func (_ *pas) EvaluationCommand(executableFilename string, args []string) []string {
+	return append([]string{"./" + executableFilename}, args...)
+}
 
 //// Python 2
 //type py2 struct{}

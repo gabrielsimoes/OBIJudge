@@ -9,7 +9,6 @@ import (
 	"errors"
 	"io"
 	"io/ioutil"
-	"os"
 	"strings"
 	"unicode"
 )
@@ -122,26 +121,4 @@ func strip(s string) string {
 	}
 
 	return out.String()
-}
-
-// Writes text to path, replacing any existing files
-func writeNewFile(path string, text []byte) error {
-	_ = os.Remove(path)
-
-	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0666)
-	if err != nil {
-		return err
-	}
-
-	_, err = file.Write(text)
-	if err != nil {
-		return err
-	}
-
-	err = file.Close()
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
