@@ -13,20 +13,20 @@ import (
 )
 
 const (
-	RESULT_NOTHING int = iota
-	RESULT_TIMEOUT
-	RESULT_SIGNAL
-	RESULT_FAILED
-	RESULT_CORRECT
-	RESULT_WRONG
+	ResultNothing int = iota
+	ResultTimeout
+	ResultSignal
+	ResultFailed
+	ResultCorrect
+	ResultWrong
 )
 
 const (
-	RESULT_COMP_NOTHING int = iota
-	RESULT_COMP_TIMEOUT
-	RESULT_COMP_SIGNAL
-	RESULT_COMP_FAILED
-	RESULT_COMP_SUCCESS
+	ResultCompNothing int = iota
+	ResultCompTimeout
+	ResultCompSignal
+	ResultCompFailed
+	ResultCompSuccess
 )
 
 const (
@@ -49,9 +49,17 @@ type Submission struct {
 	Key  []byte
 }
 
+type CustomTest struct {
+	ID    uint32
+	SID   string
+	When  time.Time
+	Input []byte
+	Code  []byte
+	Lang  Language
+}
+
 type TaskVerdict struct {
 	VerdictInfo
-	Score       int
 	Compilation int
 	Batches     []BatchVerdict
 	Error       bool
@@ -66,21 +74,13 @@ type BatchVerdict struct {
 	Extra  string
 }
 
-type CustomTest struct {
-	ID    uint32
-	SID   string
-	When  time.Time
-	Input []byte
-	Code  []byte
-	Lang  Language
-}
-
 type CustomTestVerdict struct {
 	VerdictInfo
 	Compilation int
 	Result      int
 	Time        time.Duration
 	Memory      int64
+	Output      string
 	Error       bool
 	Extra       string
 }
@@ -91,7 +91,8 @@ type VerdictInfo struct {
 	When     time.Time
 	TaskName string
 	Code     string
-	Lang     Language
+	LangMime string
+	LangName string
 }
 
 type Judge struct {
@@ -180,7 +181,8 @@ func (w *judgeWorker) start() {
 				verdict.When = s.When
 				verdict.TaskName = s.Task.Name
 				verdict.Code = string(s.Code)
-				verdict.Lang = s.Lang
+				verdict.LangMime = s.Lang.MimeType()
+				verdict.LangName = s.Lang.Name()
 
 				if testingFlag {
 					fmt.Printf("%+v\n\n", verdict)
@@ -194,7 +196,8 @@ func (w *judgeWorker) start() {
 				verdict.When = t.When
 				verdict.TaskName = "_test"
 				verdict.Code = string(t.Code)
-				verdict.Lang = t.Lang
+				verdict.LangMime = t.Lang.MimeType()
+				verdict.LangName = t.Lang.Name()
 
 				if testingFlag {
 					fmt.Printf("%+v\n\n", verdict)
@@ -261,17 +264,17 @@ func (w *judgeWorker) compile(box *Box, compilationCommand []string) (bool, int,
 		return false, 0, result.Error
 	} else {
 		if result.Status == STATUS_WTL || result.Status == STATUS_CTL {
-			return true, RESULT_COMP_TIMEOUT, ""
+			return true, ResultCompTimeout, ""
 		} else if result.Status == STATUS_SIG {
-			return true, RESULT_COMP_SIGNAL, result.Signal.String()
+			return true, ResultCompSignal, result.Signal.String()
 		} else if result.Status == STATUS_EXT {
-			return true, RESULT_COMP_FAILED, "Exit Code: " + strconv.Itoa(result.ExitCode) + "\n" + string(output)
+			return true, ResultCompFailed, "Exit Code: " + strconv.Itoa(result.ExitCode) + "\n" + string(output)
 		} else if result.Status == STATUS_OK {
-			return true, RESULT_COMP_SUCCESS, ""
+			return true, ResultCompSuccess, ""
 		}
 	}
 
-	return true, RESULT_COMP_SUCCESS, ""
+	return true, ResultCompSuccess, ""
 }
 
 func (w *judgeWorker) judge(s Submission) TaskVerdict {
@@ -286,12 +289,12 @@ func (w *judgeWorker) judge(s Submission) TaskVerdict {
 	ok, compilationResult, compilationExtra := w.compile(box, compilationCommand)
 	if !ok {
 		return TaskVerdict{Error: true, Extra: compilationExtra}
-	} else if compilationResult != RESULT_COMP_SUCCESS {
+	} else if compilationResult != ResultCompSuccess {
 		return TaskVerdict{Compilation: compilationResult, Extra: compilationExtra}
 	}
 
 	var ret TaskVerdict
-	ret.Compilation = RESULT_COMP_SUCCESS
+	ret.Compilation = ResultCompSuccess
 
 	tests, err := w.db.Tests(s.Task.Name, s.Key)
 	if err != nil {
@@ -316,11 +319,11 @@ func (w *judgeWorker) judge(s Submission) TaskVerdict {
 	ret.Batches = make([]BatchVerdict, len(s.Task.Batches))
 
 	for batchNumber, batch := range s.Task.Batches {
-		ret.Batches[batchNumber].Result = RESULT_CORRECT
+		ret.Batches[batchNumber].Result = ResultCorrect
 
 		for _, i := range batch.Tests {
 			test := tests[i]
-			if results[i].code == RESULT_NOTHING {
+			if results[i].code == ResultNothing {
 				command := s.Lang.EvaluationCommand(s.Task.Name, nil)
 
 				outputFile, err := os.Create(filepath.Join(box.BoxPath, "box", ".output"))
@@ -358,21 +361,21 @@ func (w *judgeWorker) judge(s Submission) TaskVerdict {
 					results[i].memory = result.Memory
 
 					if result.Status == STATUS_WTL || result.Status == STATUS_CTL {
-						results[i].code = RESULT_TIMEOUT
+						results[i].code = ResultTimeout
 					} else if result.Status == STATUS_SIG {
-						results[i].code = RESULT_SIGNAL
+						results[i].code = ResultSignal
 						results[i].extra = result.Signal.String()
 					} else if result.Status == STATUS_EXT {
-						results[i].code = RESULT_FAILED
+						results[i].code = ResultFailed
 						results[i].extra = "Exit Code: " + strconv.Itoa(result.ExitCode)
 					} else if result.Status == STATUS_OK {
-						results[i].code = RESULT_CORRECT
+						results[i].code = ResultCorrect
 					}
 				}
 
-				if results[i].code == RESULT_CORRECT {
+				if results[i].code == ResultCorrect {
 					if strings.Compare(strip(string(output)), strip(string(test.Output))) != 0 {
-						results[i].code = RESULT_WRONG
+						results[i].code = ResultWrong
 					}
 				}
 			}
@@ -385,16 +388,15 @@ func (w *judgeWorker) judge(s Submission) TaskVerdict {
 				ret.Batches[batchNumber].Memory = results[i].memory
 			}
 
-			if results[i].code != RESULT_CORRECT {
+			if results[i].code != ResultCorrect {
 				ret.Batches[batchNumber].Result = results[i].code
 				ret.Batches[batchNumber].Extra = results[i].extra
 				break
 			}
 		}
 
-		if ret.Batches[batchNumber].Result == RESULT_CORRECT {
+		if ret.Batches[batchNumber].Result == ResultCorrect {
 			ret.Batches[batchNumber].Score = batch.Value
-			ret.Score += batch.Value
 		}
 	}
 
@@ -413,26 +415,44 @@ func (w *judgeWorker) test(t CustomTest) CustomTestVerdict {
 	ok, compilationResult, compilationExtra := w.compile(box, compilationCommand)
 	if !ok {
 		return CustomTestVerdict{Error: true, Extra: compilationExtra}
-	} else if compilationResult != RESULT_COMP_SUCCESS {
+	} else if compilationResult != ResultCompSuccess {
 		return CustomTestVerdict{Compilation: compilationResult, Extra: compilationExtra}
 	}
 
 	var ret CustomTestVerdict
-	ret.Compilation = RESULT_COMP_SUCCESS
+	ret.Compilation = ResultCompSuccess
 
 	command := t.Lang.EvaluationCommand("test", nil)
-	var output bytes.Buffer
+
+	outputFile, err := os.Create(filepath.Join(box.BoxPath, "box", ".output"))
+	if err != nil {
+		return CustomTestVerdict{Error: true, Extra: err.Error()}
+	}
+
 	result := box.Run(&BoxConfig{
 		Path:          command[0],
 		Args:          command,
 		Env:           ENV,
 		Stdin:         bytes.NewReader(t.Input),
-		Stdout:        &output,
+		Stdout:        outputFile,
 		EnableCgroups: true,
 		MemoryLimit:   2 << 20, // 2GB
 		CPUTimeLimit:  2 * time.Minute,
 		WallTimeLimit: 2 * time.Minute,
 	})
+
+	outputFile.Close()
+	output, err := ioutil.ReadFile(filepath.Join(box.BoxPath, "box", ".output"))
+
+	if err != nil {
+		return CustomTestVerdict{Error: true, Extra: err.Error()}
+	}
+
+	if len(output) > 1024 {
+		ret.Output = string(output[:1024]) + "\n\n(...)"
+	} else {
+		ret.Output = string(output)
+	}
 
 	if result.Status == STATUS_ERR {
 		return CustomTestVerdict{Error: true, Extra: result.Error}
@@ -442,15 +462,15 @@ func (w *judgeWorker) test(t CustomTest) CustomTestVerdict {
 	ret.Memory = result.Memory
 
 	if result.Status == STATUS_WTL || result.Status == STATUS_CTL {
-		ret.Result = RESULT_TIMEOUT
+		ret.Result = ResultTimeout
 	} else if result.Status == STATUS_SIG {
-		ret.Result = RESULT_SIGNAL
+		ret.Result = ResultSignal
 		ret.Extra = result.Signal.String()
 	} else if result.Status == STATUS_EXT {
-		ret.Result = RESULT_FAILED
+		ret.Result = ResultFailed
 		ret.Extra = "Exit Code: " + strconv.Itoa(result.ExitCode)
 	} else if result.Status == STATUS_OK {
-		ret.Result = RESULT_CORRECT
+		ret.Result = ResultCorrect
 	}
 
 	return ret

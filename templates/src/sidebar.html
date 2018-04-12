@@ -1,4 +1,4 @@
-<div class="one-third column">
+<div class="three columns">
   <div class="row" style="margin: 10px 0">
     {{template "logo.html"}}
   </div>
@@ -23,6 +23,6 @@
   <div class="row">
     <h4>{{T "documentation"}}</h4>
     {{range .Refs}}
-    <a class="button" href="/ref/{{.Name}}/{{.Index}}">{{.Title}}</a> {{end}}
+    <a class="button u-full-width" href="/ref/{{.Name}}/{{.Index}}">{{.Title}}</a> {{end}}
   </div>
 </div>

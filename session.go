@@ -1,8 +1,8 @@
 package main
 
 import (
-	"io/ioutil"
 	"net/http"
+	"sort"
 	"strconv"
 	"sync"
 	"time"
@@ -26,7 +26,13 @@ type Session struct {
 	contest      string
 	taskVerdicts []TaskVerdict
 	testVerdicts []CustomTestVerdict
+	codes        map[string]CodeInfo
 	lock         sync.Mutex
+}
+
+type CodeInfo struct {
+	Code string
+	Mime string
 }
 
 func NewSessionManager(taskVerdictChannel <-chan TaskVerdict, testVerdictChannel <-chan CustomTestVerdict, cookieName string) *SessionManager {
@@ -50,6 +56,16 @@ func NewSessionManager(taskVerdictChannel <-chan TaskVerdict, testVerdictChannel
 	return m
 }
 
+type taskVerdictsByID []TaskVerdict
+type testVerdictsByID []CustomTestVerdict
+
+func (v taskVerdictsByID) Len() int           { return len(v) }
+func (v testVerdictsByID) Len() int           { return len(v) }
+func (v taskVerdictsByID) Swap(i, j int)      { v[i], v[j] = v[j], v[i] }
+func (v testVerdictsByID) Swap(i, j int)      { v[i], v[j] = v[j], v[i] }
+func (v taskVerdictsByID) Less(i, j int) bool { return v[i].ID < v[j].ID }
+func (v testVerdictsByID) Less(i, j int) bool { return v[i].ID < v[j].ID }
+
 func (m *SessionManager) StartWatcher() {
 	if m.watcherStopChannel != nil {
 		return
@@ -57,25 +73,29 @@ func (m *SessionManager) StartWatcher() {
 
 	m.watcherStopChannel = make(chan bool)
 	go func() {
-		select {
-		case <-m.watcherStopChannel:
-			return
-		case v := <-m.taskVerdictChannel:
-			m.lock.Lock()
-			if session, ok := m.sessions[v.SID]; ok {
-				session.lock.Lock()
-				session.taskVerdicts = append(session.taskVerdicts, v)
-				session.lock.Unlock()
+		for {
+			select {
+			case <-m.watcherStopChannel:
+				return
+			case v := <-m.taskVerdictChannel:
+				m.lock.Lock()
+				if session, ok := m.sessions[v.SID]; ok {
+					session.lock.Lock()
+					session.taskVerdicts = append(session.taskVerdicts, v)
+					session.lock.Unlock()
+					sort.Sort(taskVerdictsByID(session.taskVerdicts))
+				}
+				m.lock.Unlock()
+			case v := <-m.testVerdictChannel:
+				m.lock.Lock()
+				if session, ok := m.sessions[v.SID]; ok {
+					session.lock.Lock()
+					session.testVerdicts = append(session.testVerdicts, v)
+					session.lock.Unlock()
+					sort.Sort(testVerdictsByID(session.testVerdicts))
+				}
+				m.lock.Unlock()
 			}
-			m.lock.Unlock()
-		case v := <-m.testVerdictChannel:
-			m.lock.Lock()
-			if session, ok := m.sessions[v.SID]; ok {
-				session.lock.Lock()
-				session.testVerdicts = append(session.testVerdicts, v)
-				session.lock.Unlock()
-			}
-			m.lock.Unlock()
 		}
 	}()
 }
@@ -141,15 +161,8 @@ func (m *SessionManager) OpenSession(w http.ResponseWriter, r *http.Request) (*S
 	}
 
 	session := &Session{
-		sid: string(sid),
-	}
-
-	if testingFlag {
-		password, err := ioutil.ReadFile("pass")
-		if err == nil && len(password) > 0 {
-			session.password = password
-		}
-		session.contest = "judge_test"
+		sid:   string(sid),
+		codes: make(map[string]CodeInfo),
 	}
 
 	m.sessions[sid] = session
@@ -207,4 +220,75 @@ func (s *Session) SetContest(contest string) {
 	defer s.lock.Unlock()
 
 	s.contest = contest
+}
+
+func (s *Session) GetTaskSubmissions(taskName string) []TaskVerdict {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	ret := make([]TaskVerdict, 0)
+	for _, v := range s.taskVerdicts {
+		if v.TaskName == taskName {
+			ret = append(ret, v)
+		}
+	}
+	return ret
+}
+
+func (s *Session) GetSubmissions() []TaskVerdict {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	ret := make([]TaskVerdict, len(s.taskVerdicts))
+	copy(ret, s.taskVerdicts)
+	return ret
+}
+
+func (s *Session) GetSubmission(id int) []TaskVerdict {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	ret := make([]TaskVerdict, 0)
+	for _, v := range s.taskVerdicts {
+		if int(v.ID) == id {
+			ret = append(ret, v)
+		}
+	}
+	return ret
+}
+
+func (s *Session) GetTests() []CustomTestVerdict {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	ret := make([]CustomTestVerdict, len(s.testVerdicts))
+	copy(ret, s.testVerdicts)
+	return ret
+}
+
+func (s *Session) GetTest(id int) []CustomTestVerdict {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	ret := make([]CustomTestVerdict, 0)
+	for _, v := range s.testVerdicts {
+		if int(v.ID) == id {
+			ret = append(ret, v)
+		}
+	}
+	return ret
+}
+
+func (s *Session) SetCode(task string, code CodeInfo) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	s.codes[task] = code
+}
+
+func (s *Session) GetCode(task string) CodeInfo {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	return s.codes[task]
 }

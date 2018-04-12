@@ -250,7 +250,7 @@ func (b *Box) Run(c *BoxConfig) *BoxResult {
 
 	if c.EnableCgroups {
 		var err error
-		c.control, err = cgroups.New(cgroups.V1, cgroups.StaticPath(fmt.Sprintf("box-%d-%d", b.ID, rand.Intn(100))), &specs.LinuxResources{})
+		c.control, err = cgroups.New(cgroups.V1, cgroups.StaticPath(fmt.Sprintf("box-%d-%d", b.ID, rand.Intn(1))), &specs.LinuxResources{})
 		if err != nil {
 			c.result.Status = STATUS_ERR
 			c.result.Error = err.Error()
@@ -654,23 +654,33 @@ func (c *BoxConfig) setupFds() error {
 }
 
 func (c *BoxConfig) runChild() int {
+	startTime := time.Now()
+
 	if c.EnableCgroups {
 		if err := c.control.Add(cgroups.Process{Pid: os.Getpid()}); err != nil {
 			return 1
 		}
 	}
 
+	fmt.Println(time.Since(startTime))
+
 	if err := c.setupRoot(); err != nil {
 		return 2
 	}
+
+	fmt.Println(time.Since(startTime))
 
 	if err := c.setupRlimits(); err != nil {
 		return 3
 	}
 
+	fmt.Println(time.Since(startTime))
+
 	if err := c.setupCredentials(); err != nil {
 		return 4
 	}
+
+	fmt.Println(time.Since(startTime))
 
 	if err := c.setupFds(); err != nil {
 		return 5

@@ -19,6 +19,7 @@
     "gulp-htmlmin": "^4.0.0",
     "gulp-if-env": "^0.1.0",
     "gulp-livereload": "^3.8.1",
+    "gulp-minify": "^2.1.0",
     "gulp-plumber": "^1.2.0",
     "gulp-sourcemaps": "^2.6.4",
     "gulp-sync": "^0.1.4",
@@ -27,10 +28,13 @@
     "jquery": "^3.3.1",
     "katex": "^0.9.0",
     "merge-stream": "^1.0.1",
+    "moment": "^2.22.0",
     "node-notifier": "^5.2.1",
     "normalize.css": "^8.0.0",
     "skeleton-css": "^2.0.4",
     "sudo": "^1.0.3",
-    "toastr": "^2.1.4"
+    "tippy.js": "^2.5.0",
+    "toastr": "^2.1.4",
+    "tooltip": "darsain/tooltip"
   }
 }

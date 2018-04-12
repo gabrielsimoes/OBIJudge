@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"html"
 	"html/template"
 	"io/ioutil"
@@ -93,7 +92,14 @@ func (srv *Server) Start() error {
 	r.Handle("/task/{name}.pdf", srv.authWrapper(srv.pdfHandler)).Methods("GET")
 	r.Handle("/task/{name}", srv.authWrapper(srv.taskHandler)).Methods("GET")
 	r.Handle("/submit/{name}", srv.authWrapper(srv.submitHandler)).Methods("POST")
-	// r.Handle("/test", srv.authWrapper(srv.testHandler)).Methods("POST")
+	r.Handle("/test", srv.authWrapper(srv.testHandler)).Methods("POST")
+
+	r.Handle("/getsubmission", srv.authWrapper(srv.getSubmissionHandler)).Methods("GET")
+	r.Handle("/gettest", srv.authWrapper(srv.getTestHandler)).Methods("GET")
+	r.Handle("/gettasks", srv.authWrapper(srv.getTasksHandler)).Methods("GET")
+	r.Handle("/gettasktitle", srv.authWrapper(srv.getTaskTitleHandler)).Methods("GET")
+	r.Handle("/getcode", srv.authWrapper(srv.getCode)).Methods("GET")
+	r.Handle("/setcode", srv.authWrapper(srv.setCode)).Methods("POST")
 
 	// setup http.Server
 	srv.server = &http.Server{
@@ -184,6 +190,13 @@ func (srv *Server) loginHandler(w http.ResponseWriter, r *http.Request) {
 	password := r.Form.Get("password")
 	contest := r.Form.Get("contest")
 
+	if testingFlag {
+		pass, err := ioutil.ReadFile("pass")
+		if err == nil && len(password) > 0 {
+			password = string(pass)
+		}
+	}
+
 	if srv.DB.Authenticate([]byte(password)) {
 		s.SetPassword([]byte(password))
 		s.SetContest(contest)
@@ -254,7 +267,6 @@ func (srv *Server) overviewHandler(s *Session, w http.ResponseWriter, r *http.Re
 		"PageID": "_overview",
 		"Title":  contest.Title,
 		"Tasks":  tasks,
-		"Scores": nil,
 		"Refs":   srv.Reference.Data,
 	}, http.StatusOK)
 }
@@ -307,7 +319,7 @@ func (srv *Server) submitHandler(s *Session, w http.ResponseWriter, r *http.Requ
 
 	task, err := srv.DB.Task(name)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusBadRequest)
 		encoder.Encode(result{err.Error(), 0})
 		return
 	}
@@ -338,9 +350,11 @@ func (srv *Server) submitHandler(s *Session, w http.ResponseWriter, r *http.Requ
 		code = []byte(r.Form.Get("code"))
 	}
 
+	// TODO: limit code size
+
 	lang, ok := LanguageRegistry[r.Form.Get("lang")]
 	if !ok {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusBadRequest)
 		encoder.Encode(result{"Language " + r.Form.Get("lang") + " doesn't have a runner!", 0})
 		return
 	}
@@ -353,7 +367,60 @@ func (srv *Server) submitHandler(s *Session, w http.ResponseWriter, r *http.Requ
 		Lang: lang,
 		Key:  s.GetPassword(),
 	})
-	fmt.Println(encoder.Encode(result{"", subID}))
+	encoder.Encode(result{"", subID})
+}
+
+func (srv *Server) testHandler(s *Session, w http.ResponseWriter, r *http.Request) {
+	type result struct {
+		Error string
+		ID    uint32
+	}
+
+	encoder := json.NewEncoder(w)
+
+	err := r.ParseMultipartForm(32 << 20)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		encoder.Encode(result{err.Error(), 0})
+		return
+	}
+
+	file, _, err := r.FormFile("file")
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		encoder.Encode(result{err.Error(), 0})
+		return
+	}
+	defer file.Close()
+
+	code, err := ioutil.ReadAll(file)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		encoder.Encode(result{err.Error(), 0})
+		return
+	}
+
+	if len(code) == 0 {
+		code = []byte(r.Form.Get("code"))
+	}
+
+	lang, ok := LanguageRegistry[r.Form.Get("lang")]
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		encoder.Encode(result{"Language " + r.Form.Get("lang") + " doesn't have a runner!", 0})
+		return
+	}
+
+	input := []byte(r.Form.Get("input"))
+
+	testID := srv.Judge.SendCustomTest(CustomTest{
+		SID:   s.GetID(),
+		When:  time.Now(),
+		Input: input,
+		Code:  code,
+		Lang:  lang,
+	})
+	encoder.Encode(result{"", testID})
 }
 
 func (srv *Server) pdfHandler(s *Session, w http.ResponseWriter, r *http.Request) {
@@ -372,6 +439,71 @@ func (srv *Server) pdfHandler(s *Session, w http.ResponseWriter, r *http.Request
 		err = errors.New("No PDF problem statement for " + name + ".")
 		srv.errorHandler(err, w, r)
 	}
+}
+
+func (srv *Server) getSubmissionHandler(s *Session, w http.ResponseWriter, r *http.Request) {
+	encoder := json.NewEncoder(w)
+
+	var subs []TaskVerdict
+
+	task := r.FormValue("task")
+	if len(task) > 0 {
+		subs = s.GetTaskSubmissions(task)
+	} else {
+		id, err := strconv.Atoi(r.FormValue("id"))
+		if err != nil {
+			subs = s.GetSubmissions()
+		} else {
+			subs = s.GetSubmission(id)
+		}
+	}
+
+	encoder.Encode(subs)
+}
+
+func (srv *Server) getTestHandler(s *Session, w http.ResponseWriter, r *http.Request) {
+	encoder := json.NewEncoder(w)
+
+	id, err := strconv.Atoi(r.FormValue("id"))
+	if err != nil {
+		encoder.Encode(s.GetTests())
+	} else {
+		encoder.Encode(s.GetTest(id))
+	}
+}
+
+func (srv *Server) getTasksHandler(s *Session, w http.ResponseWriter, r *http.Request) {
+	encoder := json.NewEncoder(w)
+
+	tasks, err := srv.DB.ContestTasks(s.GetContest())
+	if err != nil {
+		srv.errorHandler(err, w, r)
+		return
+	}
+
+	encoder.Encode(tasks)
+}
+
+func (srv *Server) getTaskTitleHandler(s *Session, w http.ResponseWriter, r *http.Request) {
+	name := r.FormValue("name")
+
+	task, err := srv.DB.Task(name)
+	if err == nil {
+		w.Write([]byte(task.Title))
+	}
+}
+
+func (srv *Server) getCode(s *Session, w http.ResponseWriter, r *http.Request) {
+	encoder := json.NewEncoder(w)
+	task := r.FormValue("task")
+	encoder.Encode(s.GetCode(task))
+}
+
+func (srv *Server) setCode(s *Session, w http.ResponseWriter, r *http.Request) {
+	task := r.FormValue("task")
+	code := r.FormValue("code")
+	mime := r.FormValue("mime")
+	s.SetCode(task, CodeInfo{Code: code, Mime: mime})
 }
 
 func (srv *Server) localeWrapper(next http.Handler) http.Handler {

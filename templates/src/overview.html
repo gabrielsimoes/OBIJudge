@@ -3,10 +3,10 @@
 <div class="container">
   {{template "sidebar.html" .}}
 
-  <div class="two-thirds column">
+  <div class="nine columns">
     <div class="row">
       <h2>{{.Title}}</h2>
-      <table class="u-full-width">
+      <table class="u-full-width" id="submissions-table">
         <thead>
           <tr>
             <th>{{T "problem"}}</th>
@@ -15,17 +15,12 @@
           </tr>
         </thead>
         <tbody>
-          {{range $task := .Tasks}}
-          <tr style="white-space:pre">
-            <td>{{$task.Title}}</td>
-            <td>{{with (index $.Scores $task.Name)}}{{.String $.T}}{{end}}</td>
-            <td>{{with (index $.Scores $task.Name)}}{{.Score}}{{end}}</td>
-          </tr>
-          {{end}}
         </tbody>
       </table>
     </div>
   </div>
 </div>
+
+<script>$(setupOverviewPage());</script>
 
 {{template "footer.html"}}

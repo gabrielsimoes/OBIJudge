@@ -3,7 +3,7 @@
 <div class="container">
     {{template "sidebar.html" .}}
 
-    <div class="two-thirds column">
+    <div class="nine columns">
         <div class="row">
             <h2>{{.Task.Title}}</h2>
             {{if .HasHTML}}
@@ -18,8 +18,26 @@
         </div>
 
         <div class="row">
+            <h2>{{T "submissions"}}</h2>
+            <table class="u-full-width" id="submissions-table">
+                <thead>
+                    <tr>
+                        <th>{{T "when"}}</th>
+                        <th>{{T "result"}}</th>
+                        <th>{{T "score"}}</th>
+                        <th>{{T "time"}}</th>
+                        <th>{{T "memory"}}</th>
+                        <th>{{T "language"}}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="row">
             <h3>{{T "send_label"}}</h3>
-            <form enctype="multipart/form-data" method="post" action="/submit/{{.Task.Name}}">
+            <form enctype="multipart/form-data" method="post" action="/submit/{{.Task.Name}}" id="submission-form">
                 <div class="row">
                     <label for="code">{{T "code_label"}}</label>
                     <textarea class="u-full-width editor" id="code" name="code" placeholder="{{T "insert_code"}}"></textarea>
@@ -47,8 +65,23 @@
                 </div>
 
                 <div class="row">
-                    <input type="checkbox" id="custom-input">
-                    <span class="label-body">{{T "use_custom_input"}}</span>
+                    <div class="three columns">
+                        <input type="checkbox" id="custom-input">
+                        <span class="label-body">{{T "use_custom_input"}}</span>
+                    </div>
+
+                    <div class="nine columns">
+                        <div class="loading" id="loading-test" style="display:none"></div>
+                        <div class="row u-full-width" id="test-info" style="display:none; text-align:right">
+                            {{T "result"}}: <span id="test-info-result"></span> |
+                            {{T "time"}}: <span id="test-info-time"></span> |
+                            {{T "memory"}}: <span id="test-info-memory"></span>
+                            <div class="row u-full-width">
+                                {{T "result_correct_only_means_no_errors_occurred_your_answer_may_be_wrong"}}
+                            </div>
+                        </div>
+                        <div id="test-info-extra"></div>
+                    </div>
                 </div>
 
                 <div class="row" id="customInputOutput">
