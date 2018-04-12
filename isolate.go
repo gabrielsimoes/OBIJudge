@@ -394,7 +394,7 @@ func (c *BoxConfig) updateResult(rusage *unix.Rusage) {
 
 	if rusage != nil {
 		c.result.CPUTime = time.Duration(rusage.Utime.Nano() + rusage.Stime.Nano())
-		c.result.Memory = rusage.Maxrss
+		c.result.Memory = int64(rusage.Maxrss)
 		return
 	}
 

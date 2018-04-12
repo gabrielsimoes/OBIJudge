@@ -8,3 +8,5 @@ yarn-error.log
 node_modules
 static/dist
 templates/dist
+dist/
+reference/

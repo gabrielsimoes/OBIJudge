@@ -130,7 +130,7 @@ gulp.task('static:templates', function() {
 gulp.task('static:build', ['static:js', 'static:css', 'static:fonts', 'static:images', 'static:templates']);
 
 gulp.task('static:clean', function() {
-  return gulp.src(['static/dist', 'templates/dist', 'OBIJudge']).pipe(clean());
+  return gulp.src(['static/dist', 'templates/dist']).pipe(clean());
 })
 
 var server = null;
