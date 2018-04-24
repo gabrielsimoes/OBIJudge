@@ -2,6 +2,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -28,14 +29,14 @@ func main() {
 	builddbCommand := flag.NewFlagSet("builddb", flag.ExitOnError)
 
 	portPtr := runCommand.Int("port", 80, "Port where interface will listen (localhost-only")
-	databasePtr := runCommand.String("database", "contests.zip", "Contests database file")
 	referencePtr := runCommand.String("reference", "reference.zip", "File where language reference is stored")
 	workersPtr := runCommand.Int("workers", 2, "Number of simultaneous judge workers")
 	localePtr := runCommand.String("locale", "en-US", "Default localization to use in web interface")
+	contestsFolderPtr := runCommand.String("contestsfolder", "/obicontests", "Folder to store contests uploaded by users")
 	runCommand.BoolVar(&testingFlag, "testing", false, "Whether to use testing features or not (no authentication, reads password from ./pass file, uses judge_test as the contest, uses testing cookies session, prints debug messages)")
 
-	sourcePtr := builddbCommand.String("source", "contests", "Folder where contests data is located")
-	targetPtr := builddbCommand.String("target", "contests.zip", "File where the database will be created (erases if already exists)")
+	sourcePtr := builddbCommand.String("source", "contest", "Folder where contests data is located")
+	targetPtr := builddbCommand.String("target", "contest.zip", "File where the database will be created (erases if already exists)")
 	passwordPtr := builddbCommand.String("password", "", "16 letters password to encrypt database (will generate one if empty)")
 	writePasswordPtr := builddbCommand.Bool("writepassword", false, "Write password to ./pass file.")
 
@@ -64,6 +65,20 @@ func main() {
 
 	if runCommand.Parsed() {
 		err := func() error {
+			if os.Geteuid() != 0 {
+				return errors.New("Must be run as root")
+			}
+
+			if os.Getegid() != 0 {
+				return errors.New("Must be run as root group")
+			}
+
+			// setup folders
+			os.RemoveAll(*contestsFolderPtr)
+			if err := os.MkdirAll(*contestsFolderPtr, 0777); err != nil {
+				return err
+			}
+
 			// setup translations
 			localesBox := rice.MustFindBox("locales")
 			if err := localesBox.Walk("", func(path string, info os.FileInfo, _ error) error {
@@ -81,25 +96,18 @@ func main() {
 				return err
 			}
 
-			db, err := OpenDatabase(*databasePtr)
-			if err != nil {
-				return err
-			}
-			defer db.Close()
-			db.Logger = logger
-
 			ref, err := OpenReference(*referencePtr)
 			if err != nil {
 				return err
 			}
 
-			judge := &Judge{NumWorkers: *workersPtr, DB: db}
+			judge := &Judge{NumWorkers: *workersPtr}
 			judge.Start()
 			defer judge.Stop()
 
 			server := &Server{
 				Port:          *portPtr,
-				DB:            db,
+				DatabasePath:  *contestsFolderPtr,
 				Reference:     ref,
 				Judge:         judge,
 				Logger:        logger,

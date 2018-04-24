@@ -23,7 +23,7 @@ type SessionManager struct {
 type Session struct {
 	sid          string
 	password     []byte
-	contest      string
+	database     *Database
 	taskVerdicts []TaskVerdict
 	testVerdicts []CustomTestVerdict
 	codes        map[string]CodeInfo
@@ -175,6 +175,10 @@ func (m *SessionManager) DeleteSession(w http.ResponseWriter, r *http.Request) {
 	defer m.lock.Unlock()
 
 	if sid := m.getSessionID(r); len(sid) > 0 {
+		if session, ok := m.sessions[sid]; ok {
+			session.GetDatabase().Clear()
+		}
+
 		delete(m.sessions, sid)
 	}
 
@@ -208,18 +212,18 @@ func (s *Session) SetPassword(password []byte) {
 	s.password = password
 }
 
-func (s *Session) GetContest() string {
+func (s *Session) GetDatabase() *Database {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	return s.contest
+	return s.database
 }
 
-func (s *Session) SetContest(contest string) {
+func (s *Session) SetDatabase(database *Database) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	s.contest = contest
+	s.database = database
 }
 
 func (s *Session) GetTaskSubmissions(taskName string) []TaskVerdict {

@@ -25,7 +25,7 @@ const (
 
 type Server struct {
 	Port          int
-	DB            *Database
+	DatabasePath  string
 	Reference     *Reference
 	Judge         *Judge
 	Logger        *log.Logger
@@ -179,27 +179,40 @@ func (srv *Server) loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = r.ParseForm()
+	err = r.ParseMultipartForm(32 << 20)
 	if err != nil {
 		srv.errorHandler(err, w, r)
 		return
 	}
 
-	password := r.Form.Get("password")
-	contest := r.Form.Get("contest")
+	contestFile, _, err := r.FormFile("contest")
+	if err != nil {
+		srv.errorHandler(err, w, r)
+		return
+	}
+	defer contestFile.Close()
 
-	if testingFlag {
-		pass, err := ioutil.ReadFile("pass")
-		if err == nil && len(password) > 0 {
-			password = string(pass)
-		}
+	password := r.Form.Get("password")
+
+	db, err := OpenDatabase(contestFile, srv.DatabasePath)
+	if err != nil {
+		srv.errorHandler(err, w, r)
+		return
 	}
 
-	if srv.DB.Authenticate([]byte(password)) {
+	auth, err := db.Authenticate([]byte(password))
+	if err != nil {
+		db.Clear()
+		srv.errorHandler(err, w, r)
+		return
+	}
+
+	if auth {
 		s.SetPassword([]byte(password))
-		s.SetContest(contest)
+		s.SetDatabase(db)
 		http.Redirect(w, r, "/", http.StatusFound)
 	} else {
+		db.Clear()
 		http.Redirect(w, r, "/?wrong=true", http.StatusFound)
 	}
 }
@@ -229,18 +242,11 @@ func (srv *Server) homeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(s.GetPassword()) == 0 {
-		contests, err := srv.DB.Contests()
-		if err != nil {
-			srv.errorHandler(err, w, r)
-			return
-		}
-
 		wrongpassword := r.FormValue("wrong")
 
 		srv.render(w, r, "home.html", map[string]interface{}{
 			"PageID":        "_home",
 			"Title":         "OBIJudge",
-			"Contests":      contests,
 			"WrongPassword": wrongpassword,
 		}, http.StatusOK)
 	} else {
@@ -249,13 +255,7 @@ func (srv *Server) homeHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (srv *Server) overviewHandler(s *Session, w http.ResponseWriter, r *http.Request) {
-	contest, err := srv.DB.Contest(s.GetContest())
-	if err != nil {
-		srv.errorHandler(err, w, r)
-		return
-	}
-
-	tasks, err := srv.DB.ContestTasks(s.GetContest())
+	contest, err := s.GetDatabase().Contest()
 	if err != nil {
 		srv.errorHandler(err, w, r)
 		return
@@ -264,7 +264,7 @@ func (srv *Server) overviewHandler(s *Session, w http.ResponseWriter, r *http.Re
 	srv.render(w, r, "overview.html", map[string]interface{}{
 		"PageID": "_overview",
 		"Title":  contest.Title,
-		"Tasks":  tasks,
+		"Tasks":  contest.Tasks,
 		"Refs":   srv.Reference.Data,
 	}, http.StatusOK)
 }
@@ -273,19 +273,19 @@ func (srv *Server) taskHandler(s *Session, w http.ResponseWriter, r *http.Reques
 	vars := mux.Vars(r)
 	name := vars["name"]
 
-	task, err := srv.DB.Task(name)
+	task, err := s.GetDatabase().Task(name)
 	if err != nil {
 		srv.errorHandler(err, w, r)
 		return
 	}
 
-	tasks, err := srv.DB.ContestTasks(s.GetContest())
+	tasks, err := s.GetDatabase().Tasks()
 	if err != nil {
 		srv.errorHandler(err, w, r)
 		return
 	}
 
-	statement, err := srv.DB.Statement(name, s.GetPassword())
+	statement, err := s.GetDatabase().Statement(name, s.GetPassword())
 	if err != nil {
 		srv.errorHandler(err, w, r)
 		return
@@ -315,7 +315,7 @@ func (srv *Server) submitHandler(s *Session, w http.ResponseWriter, r *http.Requ
 
 	encoder := json.NewEncoder(w)
 
-	task, err := srv.DB.Task(name)
+	task, err := s.GetDatabase().Task(name)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		encoder.Encode(result{err.Error(), 0})
@@ -369,6 +369,7 @@ func (srv *Server) submitHandler(s *Session, w http.ResponseWriter, r *http.Requ
 		Task: &task,
 		Code: code,
 		Lang: lang,
+		DB:   s.GetDatabase(),
 		Key:  s.GetPassword(),
 	})
 	encoder.Encode(result{"", subID})
@@ -443,7 +444,7 @@ func (srv *Server) pdfHandler(s *Session, w http.ResponseWriter, r *http.Request
 	vars := mux.Vars(r)
 	name := vars["name"]
 
-	statement, err := srv.DB.Statement(name, s.GetPassword())
+	statement, err := s.GetDatabase().Statement(name, s.GetPassword())
 	if err != nil {
 		srv.errorHandler(err, w, r)
 		return
@@ -491,7 +492,7 @@ func (srv *Server) getTestHandler(s *Session, w http.ResponseWriter, r *http.Req
 func (srv *Server) getTasksHandler(s *Session, w http.ResponseWriter, r *http.Request) {
 	encoder := json.NewEncoder(w)
 
-	tasks, err := srv.DB.ContestTasks(s.GetContest())
+	tasks, err := s.GetDatabase().Tasks()
 	if err != nil {
 		srv.errorHandler(err, w, r)
 		return
@@ -503,7 +504,7 @@ func (srv *Server) getTasksHandler(s *Session, w http.ResponseWriter, r *http.Re
 func (srv *Server) getTaskTitleHandler(s *Session, w http.ResponseWriter, r *http.Request) {
 	name := r.FormValue("name")
 
-	task, err := srv.DB.Task(name)
+	task, err := s.GetDatabase().Task(name)
 	if err == nil {
 		w.Write([]byte(task.Title))
 	}

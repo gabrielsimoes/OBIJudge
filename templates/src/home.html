@@ -10,18 +10,17 @@
     </div>
     {{end}}
 
-    <form method="post" action="/login">
+    <form enctype="multipart/form-data" method="post" action="/login" id="login-form" style="text-align:left">
       <div class="row">
-        <input class="u-full-width" type="password" placeholder="{{T "password_placeholder"}}" name="password" required>
+        <label for="contest">{{T "contest_file_label"}}</label>
+        <input type="file" id="contest" name="contest" class="u-full-width">
       </div>
+
       <div class="row">
-        <select class="u-full-width" id="contest" name="contest" required>
-          <option value="" disabled selected hidden>{{T "select_competition"}}</option>
-          {{range .Contests}}
-          <option value="{{.Name}}">{{.Title}}</option>
-          {{end}}
-        </select>
+        <label for="contest">{{T "password_label"}}</label>
+        <input class="u-full-width" type="password" name="password" required>
       </div>
+
       <div class="row">
         <input class="button-primary u-full-width" type="submit" value="login">
       </div>

@@ -8,11 +8,12 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
+	"mime/multipart"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -21,7 +22,7 @@ import (
 type ContestData struct {
 	Name  string
 	Title string
-	Tasks []string
+	Tasks []TaskData
 }
 
 // struct for a task's information
@@ -54,26 +55,62 @@ type TestData struct {
 	Output []byte
 }
 
-// a database handler
+// struct for keeping user-specific database
 type Database struct {
-	Archive *zip.ReadCloser
-	Logger  *log.Logger
+	path    string
+	archive *zip.ReadCloser
+	lock    sync.Mutex
 }
 
-func OpenDatabase(path string) (*Database, error) {
-	db := &Database{}
-	var err error = nil
-	db.Archive, err = zip.OpenReader(path)
-	return db, err
+func OpenDatabase(formFile multipart.File, folder string) (*Database, error) {
+	randKey, _ := generateKey(32)
+	path := filepath.Join(folder, string(randKey))
+
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0666)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = io.Copy(file, formFile)
+	file.Close()
+	if err != nil {
+		os.Remove(path)
+		return nil, err
+	}
+
+	archive, err := zip.OpenReader(path)
+	if err != nil {
+		os.Remove(path)
+		return nil, err
+	}
+
+	return &Database{
+		path:    path,
+		archive: archive,
+	}, nil
 }
 
-func (db *Database) Close() error {
-	return db.Archive.Close()
+func (db *Database) Clear() error {
+	db.lock.Lock()
+	defer db.lock.Unlock()
+
+	err := db.archive.Close()
+	if err != nil {
+		return err
+	}
+
+	err = os.Remove(db.path)
+	db.path = ""
+
+	return err
 }
 
 func (db *Database) filterFolder(path string) []*zip.File {
+	db.lock.Lock()
+	defer db.lock.Unlock()
+
 	var result []*zip.File
-	for _, file := range db.Archive.File {
+	for _, file := range db.archive.File {
 		if !strings.HasSuffix(file.Name, "/") &&
 			strings.HasPrefix(file.Name, path) {
 			result = append(result, file)
@@ -84,7 +121,10 @@ func (db *Database) filterFolder(path string) []*zip.File {
 }
 
 func (db *Database) filterFile(path string) *zip.File {
-	for _, file := range db.Archive.File {
+	db.lock.Lock()
+	defer db.lock.Unlock()
+
+	for _, file := range db.archive.File {
 		if file.Name == path {
 			return file
 		}
@@ -94,6 +134,9 @@ func (db *Database) filterFile(path string) *zip.File {
 }
 
 func (db *Database) readFile(file *zip.File) ([]byte, error) {
+	db.lock.Lock()
+	defer db.lock.Unlock()
+
 	rc, err := file.Open()
 	if err != nil {
 		return nil, err
@@ -127,67 +170,43 @@ func (db *Database) readSecure(file *zip.File, key []byte) ([]byte, error) {
 	return content, nil
 }
 
-func (db *Database) Authenticate(password []byte) bool {
+func (db *Database) Authenticate(password []byte) (bool, error) {
 	file := db.filterFile("/hash")
 	if file == nil {
-		db.Logger.Print("Error: no hash file")
-		return false
+		return false, errors.New("Error: no hash file")
 	}
 
 	hash, err := db.readFile(file)
 	if err != nil {
-		db.Logger.Print(err)
-		return false
+		return false, err
 	}
 
-	return bcrypt.CompareHashAndPassword(hash, password) == nil
+	return bcrypt.CompareHashAndPassword(hash, password) == nil, nil
 }
 
-func (db *Database) Contests() ([]ContestData, error) {
-	file := db.filterFile("/contests.json")
+func (db *Database) Contest() (ContestData, error) {
+	file := db.filterFile("/info.json")
 	if file == nil {
-		return []ContestData{}, errors.New("No contests.json file")
+		return ContestData{}, errors.New("No info.json file")
 	}
 
 	content, err := db.readFile(file)
-	if err != nil {
-		return []ContestData{}, err
-	}
-
-	var contests []ContestData
-	err = json.Unmarshal(content, &contests)
-	return contests, err
-}
-
-func (db *Database) Contest(name string) (ContestData, error) {
-	contests, err := db.Contests()
 	if err != nil {
 		return ContestData{}, err
 	}
 
-	for _, contest := range contests {
-		if contest.Name == name {
-			return contest, nil
-		}
-	}
-
-	return ContestData{}, errors.New("No contest named " + name)
+	var contest ContestData
+	err = json.Unmarshal(content, &contest)
+	return contest, err
 }
 
 func (db *Database) Tasks() ([]TaskData, error) {
-	file := db.filterFile("/tasks.json")
-	if file == nil {
-		return nil, errors.New("No tasks.json file")
-	}
-
-	content, err := db.readFile(file)
+	contest, err := db.Contest()
 	if err != nil {
-		return nil, err
+		return []TaskData{}, err
 	}
 
-	var tasks []TaskData
-	err = json.Unmarshal(content, &tasks)
-	return tasks, err
+	return contest.Tasks, nil
 }
 
 func (db *Database) Task(name string) (TaskData, error) {
@@ -203,29 +222,6 @@ func (db *Database) Task(name string) (TaskData, error) {
 	}
 
 	return TaskData{}, errors.New("No task named " + name)
-}
-
-func (db *Database) ContestTasks(name string) ([]TaskData, error) {
-	contest, err := db.Contest(name)
-	if err != nil {
-		return []TaskData{}, err
-	}
-
-	allTasks, err := db.Tasks()
-	if err != nil {
-		return []TaskData{}, err
-	}
-
-	var tasks []TaskData
-	for _, taskname := range contest.Tasks {
-		for _, task := range allTasks {
-			if task.Name == taskname {
-				tasks = append(tasks, task)
-			}
-		}
-	}
-
-	return tasks, err
 }
 
 func (db *Database) Statement(name string, key []byte) (StatementData, error) {

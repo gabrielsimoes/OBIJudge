@@ -153,5 +153,5 @@ func (_ *js) CompilationCommand(sourceFilenames []string, executableFilename str
 func (_ *js) CopyExtraFiles(location string) error { return nil }
 func (_ *js) EvaluationCommand(executableFilename string, args []string, memoryLimit int) []string {
 	path, _ := exec.LookPath("node")
-	return append([]string{path, "--max-old-space-size=" + strconv.Itoa(memoryLimit>>10), "--max-new-space-size=" + strconv.Itoa(memoryLimit), executableFilename + ".js"}, args...)
+	return append([]string{path, "--max-old-space-size=" + strconv.Itoa(memoryLimit>>10), executableFilename + ".js"}, args...)
 }

@@ -1,0 +1,30 @@
+{
+    "Name": "judge_test",
+    "Title": "Judge Test Contest",
+    "Tasks": [
+        {
+            "Name": "inout",
+            "Title": "In/Out",
+            "TimeLimit": 1000,
+            "MemoryLimit": 64000,
+            "NTests": 2
+        },
+        {
+            "Name": "sieve",
+            "Title": "\u2764 Sieve",
+            "TimeLimit": 2000,
+            "MemoryLimit": 50000,
+            "NTests": 5,
+            "Batches": [
+                {
+                    "Value": 10,
+                    "Tests": [ 0, 1 ]
+                },
+                {
+                    "Value": 90,
+                    "Tests": [ 0, 1, 2, 3, 4 ]
+                }
+            ]
+        }
+    ]
+}

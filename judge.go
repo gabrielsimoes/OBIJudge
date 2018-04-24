@@ -46,6 +46,7 @@ type Submission struct {
 	Task *TaskData
 	Code []byte
 	Lang Language
+	DB   *Database
 	Key  []byte
 }
 
@@ -98,7 +99,6 @@ type VerdictInfo struct {
 
 type Judge struct {
 	NumWorkers         int
-	DB                 *Database
 	SubmissionChannel  chan<- Submission
 	TaskVerdictChannel <-chan TaskVerdict
 	TestChannel        chan<- CustomTest
@@ -123,7 +123,6 @@ func (j *Judge) Start() {
 	for id := 0; id < j.NumWorkers; id++ {
 		worker := &judgeWorker{
 			id:                 id,
-			db:                 j.DB,
 			submissionChannel:  submissionChannel,
 			taskVerdictChannel: taskVerdictChannel,
 			testChannel:        testChannel,
@@ -159,7 +158,6 @@ func (j *Judge) SendCustomTest(t CustomTest) uint32 {
 
 type judgeWorker struct {
 	id                 int
-	db                 *Database
 	submissionChannel  <-chan Submission
 	taskVerdictChannel chan<- TaskVerdict
 	testChannel        <-chan CustomTest
@@ -301,7 +299,7 @@ func (w *judgeWorker) judge(s Submission) TaskVerdict {
 	var ret TaskVerdict
 	ret.Compilation = ResultCompSuccess
 
-	tests, err := w.db.Tests(s.Task.Name, s.Key)
+	tests, err := s.DB.Tests(s.Task.Name, s.Key)
 	if err != nil {
 		return TaskVerdict{Error: true, Extra: err.Error()}
 	}
