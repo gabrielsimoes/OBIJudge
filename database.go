@@ -219,7 +219,7 @@ func (db *Database) ContestTasks(name string) ([]TaskData, error) {
 	var tasks []TaskData
 	for _, taskname := range contest.Tasks {
 		for _, task := range allTasks {
-			if task.Name == name {
+			if task.Name == taskname {
 				tasks = append(tasks, task)
 			}
 		}
