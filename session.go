@@ -32,7 +32,7 @@ type Session struct {
 
 type CodeInfo struct {
 	Code string
-	Mime string
+	Lang int
 }
 
 func NewSessionManager(taskVerdictChannel <-chan TaskVerdict, testVerdictChannel <-chan CustomTestVerdict, cookieName string) *SessionManager {

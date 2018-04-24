@@ -52,8 +52,8 @@
                     <div class="three columns">
                         <label for="lang">{{T "language_label"}}</label>
                         <select class="u-full-width" id="lang" name="lang" required>
-                          {{range $mime, $lang := .Langs}}
-                          <option value="{{$mime}}">{{with $lang}}{{.Name}}{{end}}</option>
+                          {{range $index, $lang := .Langs}}
+                          <option value="{{$index}}" mime="{{$lang.MimeType}}">{{$lang.Name}}</option>
                           {{end}}
                         </select>
                     </div>

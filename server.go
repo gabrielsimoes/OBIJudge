@@ -92,7 +92,7 @@ func (srv *Server) Start() error {
 	r.Handle("/task/{name}.pdf", srv.authWrapper(srv.pdfHandler)).Methods("GET")
 	r.Handle("/task/{name}", srv.authWrapper(srv.taskHandler)).Methods("GET")
 	r.Handle("/submit/{name}", srv.authWrapper(srv.submitHandler)).Methods("POST")
-	r.Handle("/test", srv.authWrapper(srv.testHandler)).Methods("POST")
+	r.Handle("/test/{name}", srv.authWrapper(srv.testHandler)).Methods("POST")
 
 	r.Handle("/getsubmission", srv.authWrapper(srv.getSubmissionHandler)).Methods("GET")
 	r.Handle("/gettest", srv.authWrapper(srv.getTestHandler)).Methods("GET")
@@ -302,7 +302,7 @@ func (srv *Server) taskHandler(s *Session, w http.ResponseWriter, r *http.Reques
 		"HasPDF":        len(statement.PDF) > 0,
 		"HasHTML":       len(statement.HTML) > 0,
 		"HTMLStatement": template.HTML(string(statement.HTML)),
-		"Langs":         LanguageRegistry,
+		"Langs":         Languages,
 	}, http.StatusOK)
 }
 
@@ -350,14 +350,20 @@ func (srv *Server) submitHandler(s *Session, w http.ResponseWriter, r *http.Requ
 		code = []byte(r.Form.Get("code"))
 	}
 
-	// TODO: limit code size
-
-	lang, ok := LanguageRegistry[r.Form.Get("lang")]
-	if !ok {
+	if len(code) > (1 << 20) { // 1MB
 		w.WriteHeader(http.StatusBadRequest)
+		encoder.Encode(result{"Code length (" + strconv.Itoa(len(code)) + ") exceeds 1MB!", 0})
+		return
+	}
+
+	langIndex, err := strconv.Atoi(r.Form.Get("lang"))
+	if err != nil || langIndex > len(Languages) {
+		w.WriteHeader(http.StatusInternalServerError)
 		encoder.Encode(result{"Language " + r.Form.Get("lang") + " doesn't have a runner!", 0})
 		return
 	}
+
+	lang := Languages[langIndex]
 
 	subID := srv.Judge.SendSubmission(Submission{
 		SID:  s.GetID(),
@@ -375,6 +381,9 @@ func (srv *Server) testHandler(s *Session, w http.ResponseWriter, r *http.Reques
 		Error string
 		ID    uint32
 	}
+
+	vars := mux.Vars(r)
+	name := vars["name"]
 
 	encoder := json.NewEncoder(w)
 
@@ -404,21 +413,30 @@ func (srv *Server) testHandler(s *Session, w http.ResponseWriter, r *http.Reques
 		code = []byte(r.Form.Get("code"))
 	}
 
-	lang, ok := LanguageRegistry[r.Form.Get("lang")]
-	if !ok {
+	if len(code) > (1 << 20) { // 1MB
 		w.WriteHeader(http.StatusBadRequest)
+		encoder.Encode(result{"Code length (" + strconv.Itoa(len(code)) + ") exceeds 1MB!", 0})
+		return
+	}
+
+	langIndex, err := strconv.Atoi(r.Form.Get("lang"))
+	if err != nil || langIndex > len(Languages) {
+		w.WriteHeader(http.StatusInternalServerError)
 		encoder.Encode(result{"Language " + r.Form.Get("lang") + " doesn't have a runner!", 0})
 		return
 	}
 
+	lang := Languages[langIndex]
+
 	input := []byte(r.Form.Get("input"))
 
 	testID := srv.Judge.SendCustomTest(CustomTest{
-		SID:   s.GetID(),
-		When:  time.Now(),
-		Input: input,
-		Code:  code,
-		Lang:  lang,
+		SID:      s.GetID(),
+		When:     time.Now(),
+		TaskName: name,
+		Input:    input,
+		Code:     code,
+		Lang:     lang,
 	})
 	encoder.Encode(result{"", testID})
 }
@@ -502,8 +520,8 @@ func (srv *Server) getCode(s *Session, w http.ResponseWriter, r *http.Request) {
 func (srv *Server) setCode(s *Session, w http.ResponseWriter, r *http.Request) {
 	task := r.FormValue("task")
 	code := r.FormValue("code")
-	mime := r.FormValue("mime")
-	s.SetCode(task, CodeInfo{Code: code, Mime: mime})
+	lang, _ := strconv.Atoi(r.FormValue("lang"))
+	s.SetCode(task, CodeInfo{Code: code, Lang: lang})
 }
 
 func (srv *Server) localeWrapper(next http.Handler) http.Handler {

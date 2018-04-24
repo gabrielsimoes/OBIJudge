@@ -50,12 +50,13 @@ type Submission struct {
 }
 
 type CustomTest struct {
-	ID    uint32
-	SID   string
-	When  time.Time
-	Input []byte
-	Code  []byte
-	Lang  Language
+	ID       uint32
+	SID      string
+	When     time.Time
+	TaskName string
+	Input    []byte
+	Code     []byte
+	Lang     Language
 }
 
 type TaskVerdict struct {
@@ -232,6 +233,10 @@ func (w *judgeWorker) prepare(lang Language, source []byte, sourceFilename strin
 }
 
 func (w *judgeWorker) compile(box *Box, compilationCommand []string) (bool, int, string) {
+	if compilationCommand == nil {
+		return true, ResultCompSuccess, ""
+	}
+
 	outputFile, err := os.Create(filepath.Join(box.BoxPath, "box", ".output"))
 	if err != nil {
 		return true, 0, err.Error()
@@ -244,7 +249,7 @@ func (w *judgeWorker) compile(box *Box, compilationCommand []string) (bool, int,
 		Stdout:        outputFile,
 		Stderr:        outputFile,
 		EnableCgroups: true,
-		MemoryLimit:   1 << 20, // 1GB
+		MemoryLimit:   25 << 19, // 2.5GB
 		CPUTimeLimit:  2 * time.Minute,
 		WallTimeLimit: 2 * time.Minute,
 	})
@@ -324,27 +329,37 @@ func (w *judgeWorker) judge(s Submission) TaskVerdict {
 		for _, i := range batch.Tests {
 			test := tests[i]
 			if results[i].code == ResultNothing {
-				command := s.Lang.EvaluationCommand(s.Task.Name, nil)
+				command := s.Lang.EvaluationCommand(s.Task.Name, nil, s.Task.MemoryLimit)
 
 				outputFile, err := os.Create(filepath.Join(box.BoxPath, "box", ".output"))
 				if err != nil {
 					return TaskVerdict{Error: true, Extra: err.Error()}
 				}
 
-				result := box.Run(&BoxConfig{
+				boxConfig := &BoxConfig{
 					Path:          command[0],
 					Args:          command,
 					Env:           ENV,
 					Stdin:         bytes.NewReader(test.Input),
 					Stdout:        outputFile,
+					Stderr:        outputFile,
 					EnableCgroups: true,
-					MemoryLimit:   int64(s.Task.MemoryLimit),
 					CPUTimeLimit:  time.Duration(s.Task.TimeLimit) * time.Millisecond,
 					WallTimeLimit: time.Duration(s.Task.TimeLimit) * time.Millisecond,
-				})
+				}
+
+				if s.Lang.UseMemoryLimit() {
+					boxConfig.MemoryLimit = int64(s.Task.MemoryLimit)
+				}
+
+				result := box.Run(boxConfig)
 
 				outputFile.Close()
 				output, err := ioutil.ReadFile(filepath.Join(box.BoxPath, "box", ".output"))
+
+				if testingFlag {
+					fmt.Printf("Test %d output: %s\n", i, string(output))
+				}
 
 				if err != nil {
 					return TaskVerdict{Error: true, Extra: err.Error()}
@@ -404,13 +419,13 @@ func (w *judgeWorker) judge(s Submission) TaskVerdict {
 }
 
 func (w *judgeWorker) test(t CustomTest) CustomTestVerdict {
-	box, err := w.prepare(t.Lang, t.Code, "test"+t.Lang.SourceExtension())
+	box, err := w.prepare(t.Lang, t.Code, t.TaskName+t.Lang.SourceExtension())
 	if err != nil {
 		return CustomTestVerdict{Error: true, Extra: err.Error()}
 	}
 	defer box.Clear()
 
-	compilationCommand := t.Lang.CompilationCommand([]string{"test" + t.Lang.SourceExtension()}, "test")
+	compilationCommand := t.Lang.CompilationCommand([]string{t.TaskName + t.Lang.SourceExtension()}, t.TaskName)
 
 	ok, compilationResult, compilationExtra := w.compile(box, compilationCommand)
 	if !ok {
@@ -422,24 +437,29 @@ func (w *judgeWorker) test(t CustomTest) CustomTestVerdict {
 	var ret CustomTestVerdict
 	ret.Compilation = ResultCompSuccess
 
-	command := t.Lang.EvaluationCommand("test", nil)
+	command := t.Lang.EvaluationCommand(t.TaskName, nil, 25<<19) // 2.5GB
 
 	outputFile, err := os.Create(filepath.Join(box.BoxPath, "box", ".output"))
 	if err != nil {
 		return CustomTestVerdict{Error: true, Extra: err.Error()}
 	}
 
-	result := box.Run(&BoxConfig{
+	boxConfig := &BoxConfig{
 		Path:          command[0],
 		Args:          command,
 		Env:           ENV,
 		Stdin:         bytes.NewReader(t.Input),
 		Stdout:        outputFile,
 		EnableCgroups: true,
-		MemoryLimit:   2 << 20, // 2GB
 		CPUTimeLimit:  2 * time.Minute,
 		WallTimeLimit: 2 * time.Minute,
-	})
+	}
+
+	if t.Lang.UseMemoryLimit() {
+		boxConfig.MemoryLimit = 25 << 19 // 2.5GB
+	}
+
+	result := box.Run(boxConfig)
 
 	outputFile.Close()
 	output, err := ioutil.ReadFile(filepath.Join(box.BoxPath, "box", ".output"))

@@ -152,10 +152,6 @@ function setupCodeEditor() {
     window.addEventListener("mouseup", on_release);
   });
 
-  $('select#lang').change(function() {
-    editor.setOption("mode", this.value);
-  });
-
   $('input#custom-input').change(function() {
     if (this.checked) $('div#customInputOutput').show();
     else $('div#customInputOutput').hide();
@@ -171,7 +167,7 @@ function setupCodeEditor() {
     var isTest = $('#custom-input').is(':checked')
 
     $.ajax({
-      url: isTest ? '/test' : '/submit/' + getTaskName(),
+      url: (isTest ? '/test/' : '/submit/') + getTaskName(),
       type: 'POST',
       data: data,
       processData: false,
@@ -207,10 +203,17 @@ function setupCodeEditor() {
     });
   });
 
+  langSelect = $('select#lang')
+
+  langSelect.change(function() {
+    editor.setOption("mode", this.options[this.selectedIndex].getAttribute('mime'))
+  });
+
   $.get('/getcode', {
     task: getTaskName(),
   }, function(data) {
-    editor.setOption("mode", data.Mime);
+    langSelect.val(data.Lang);
+    editor.setOption("mode", langSelect[0].options[langSelect[0].selectedIndex].getAttribute('mime'))
     editor.setValue(data.Code);
   }, "json");
 
@@ -218,7 +221,7 @@ function setupCodeEditor() {
     $.post('/setcode', {
       task: getTaskName(),
       code: editor.getValue(),
-      mime: $('select#lang').val(),
+      lang: $('select#lang').val(),
     }, null, "json");
   }, 250));
 };

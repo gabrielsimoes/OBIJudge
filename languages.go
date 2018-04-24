@@ -1,22 +1,19 @@
 package main
 
-import "os/exec"
-
-var (
-	LanguageRegistry = make(map[string]Language)
+import (
+	"os/exec"
+	"strconv"
 )
 
-func init() {
-	for _, lang := range []Language{&cpp{}, &pas{}} {
-		LanguageRegistry[lang.MimeType()] = lang
-	}
-}
+var (
+	Languages = []Language{&cpp{}, &c{}, &java{}, &pas{}, &py2{}, &py3{}, &js{}}
+)
 
 type Language interface {
-	// Returns a name that identifies the language. e.g. C++11 / g++
+	// Returns a name that identifies the language. e.g. C++11 (g++)
 	Name() string
 
-	// Extensions to be used
+	// Extension to be used
 	SourceExtension() string
 
 	// Mime type
@@ -25,6 +22,9 @@ type Language interface {
 	// Whether this language requires multithreading
 	RequiresMultithreading() bool
 
+	// Whether this language memory usage should be restricted
+	UseMemoryLimit() bool
+
 	// Returns the compilation commands
 	CompilationCommand(sourceFilenames []string, executableFilename string) []string
 
@@ -32,7 +32,7 @@ type Language interface {
 	CopyExtraFiles(location string) error
 
 	// Returns the evalutaion command
-	EvaluationCommand(executableFilename string, args []string) []string
+	EvaluationCommand(executableFilename string, args []string, memoryLimit int) []string
 }
 
 type cpp struct{}
@@ -41,27 +41,51 @@ func (_ *cpp) Name() string                 { return "C++11 (g++)" }
 func (_ *cpp) SourceExtension() string      { return ".cpp" }
 func (_ *cpp) MimeType() string             { return "text/x-c++src" }
 func (_ *cpp) RequiresMultithreading() bool { return false }
+func (_ *cpp) UseMemoryLimit() bool         { return true }
 func (_ *cpp) CompilationCommand(sourceFilenames []string, executableFilename string) []string {
 	path, _ := exec.LookPath("g++")
-	command := []string{path, "-DEVAL", "-std=c++11", "-O2", "-pipe", "-static", "-s", "-o", executableFilename}
+	command := []string{path, "-DEVAL", "-std=c++11", "-O2", "-lm", "-pipe", "-static", "-s", "-o", executableFilename}
 	return append(command, sourceFilenames...)
 }
 func (_ *cpp) CopyExtraFiles(location string) error { return nil }
-func (_ *cpp) EvaluationCommand(executableFilename string, args []string) []string {
+func (_ *cpp) EvaluationCommand(executableFilename string, args []string, memoryLimit int) []string {
 	return append([]string{"./" + executableFilename}, args...)
 }
 
-//// C
-//type c struct{}
+type c struct{}
 
-//func (_ *c) sourceName(taskname string) string {
-//	return taskname + ".c"
-//}
+func (_ *c) Name() string                 { return "C (gcc)" }
+func (_ *c) SourceExtension() string      { return ".c" }
+func (_ *c) MimeType() string             { return "text/x-csrc" }
+func (_ *c) RequiresMultithreading() bool { return false }
+func (_ *c) UseMemoryLimit() bool         { return true }
+func (_ *c) CompilationCommand(sourceFilenames []string, executableFilename string) []string {
+	path, _ := exec.LookPath("gcc")
+	command := []string{path, "-DEVAL", "-O2", "-lm", "-pipe", "-static", "-s", "-o", executableFilename}
+	return append(command, sourceFilenames...)
+}
+func (_ *c) CopyExtraFiles(location string) error { return nil }
+func (_ *c) EvaluationCommand(executableFilename string, args []string, memoryLimit int) []string {
+	return append([]string{"./" + executableFilename}, args...)
+}
 
-//func (_ *c) prepare(dir, taskname string) error {
-//	cmd := exec.Command("gcc", "-static", "-pipe", "-lm", "-O2", "-std=gnu11", "-o", dir+"/"+taskname, dir+"/"+taskname+".c")
-//	return cmd.Run()
-//}
+type java struct{}
+
+func (_ *java) Name() string                 { return "Java (JDK)" }
+func (_ *java) SourceExtension() string      { return ".java" }
+func (_ *java) MimeType() string             { return "text/x-java" }
+func (_ *java) RequiresMultithreading() bool { return true }
+func (_ *java) UseMemoryLimit() bool         { return false }
+func (_ *java) CompilationCommand(sourceFilenames []string, executableFilename string) []string {
+	path, _ := exec.LookPath("javac")
+	command := []string{path, "-encoding", "UTF-8", "-sourcepath", ".", "-d", "."}
+	return append(command, sourceFilenames...)
+}
+func (_ *java) CopyExtraFiles(location string) error { return nil }
+func (_ *java) EvaluationCommand(executableFilename string, args []string, memoryLimit int) []string {
+	path, _ := exec.LookPath("java")
+	return append([]string{path, "-Dfile.encoding=UTF-8", "-XX:+UseSerialGC", "-Xss64m", "-Xmx" + strconv.Itoa(memoryLimit) + "k", executableFilename}, args...)
+}
 
 type pas struct{}
 
@@ -69,116 +93,65 @@ func (_ *pas) Name() string                 { return "Pascal (fpc)" }
 func (_ *pas) SourceExtension() string      { return ".pas" }
 func (_ *pas) MimeType() string             { return "text/x-pascal" }
 func (_ *pas) RequiresMultithreading() bool { return false }
+func (_ *pas) UseMemoryLimit() bool         { return true }
 func (_ *pas) CompilationCommand(sourceFilenames []string, executableFilename string) []string {
 	path, _ := exec.LookPath("fpc")
 	command := []string{path, "-dEVAL", "-XS", "-Xt", "-O2", "-o" + executableFilename}
-	return append(command, sourceFilenames[0])
+	return append(command, sourceFilenames...)
 }
 func (_ *pas) CopyExtraFiles(location string) error { return nil }
-func (_ *pas) EvaluationCommand(executableFilename string, args []string) []string {
+func (_ *pas) EvaluationCommand(executableFilename string, args []string, memoryLimit int) []string {
 	return append([]string{"./" + executableFilename}, args...)
 }
 
-//// Python 2
-//type py2 struct{}
+type py2 struct{}
 
-//func (_ *py2) sourceName(taskname string) string {
-//	return taskname + ".py"
-//}
+func (_ *py2) Name() string                 { return "Python 2" }
+func (_ *py2) SourceExtension() string      { return ".py" }
+func (_ *py2) MimeType() string             { return "text/x-python" }
+func (_ *py2) RequiresMultithreading() bool { return false }
+func (_ *py2) UseMemoryLimit() bool         { return true }
+func (_ *py2) CompilationCommand(sourceFilenames []string, executableFilename string) []string {
+	path, _ := exec.LookPath("python2")
+	command := []string{path, "-m", "py_compile"}
+	return append(command, sourceFilenames...)
+}
+func (_ *py2) CopyExtraFiles(location string) error { return nil }
+func (_ *py2) EvaluationCommand(executableFilename string, args []string, memoryLimit int) []string {
+	path, _ := exec.LookPath("python2")
+	return append([]string{path, executableFilename + ".pyc"}, args...)
+}
 
-//func (_ *py2) prepare(dir, taskname string) error {
-//	return nil
-//}
+type py3 struct{}
 
-//// Python 3
-//type py3 struct{}
+func (_ *py3) Name() string                 { return "Python 3" }
+func (_ *py3) SourceExtension() string      { return ".py" }
+func (_ *py3) MimeType() string             { return "text/x-python" }
+func (_ *py3) RequiresMultithreading() bool { return false }
+func (_ *py3) UseMemoryLimit() bool         { return true }
+func (_ *py3) CompilationCommand(sourceFilenames []string, executableFilename string) []string {
+	path, _ := exec.LookPath("python3")
+	command := []string{path, "-c", "import py_compile as m; m.compile(\"" + sourceFilenames[0] + "\", \"" + executableFilename + "\", doraise=True)"}
+	return command
+}
+func (_ *py3) CopyExtraFiles(location string) error { return nil }
+func (_ *py3) EvaluationCommand(executableFilename string, args []string, memoryLimit int) []string {
+	path, _ := exec.LookPath("python3")
+	return append([]string{path, executableFilename}, args...)
+}
 
-//func (_ *py3) sourceName(taskname string) string {
-//	return taskname + ".py"
-//}
+type js struct{}
 
-//func (_ *py3) prepare(dir, taskname string) error {
-//	return nil
-//}
-
-//// Java
-//type java struct{}
-
-//func (_ *java) sourceName(taskname string) string {
-//	return taskname + ".java"
-//}
-
-//func (_ *java) prepare(dir, taskname string) error {
-//	cmd := exec.Command("javac", "-encoding", "UTF-8", dir+"/"+taskname+".java")
-//	var outb, errb bytes.Buffer
-//	cmd.Stdout = &outb
-//	cmd.Stderr = &errb
-//	err := cmd.Run()
-//	if outb.Len() > 0 || errb.Len() > 0 {
-//		fmt.Println(outb.String(), errb.String())
-//	}
-//	return err
-//	// return cmd.Run()
-//}
-
-//// C++
-//func (_ *cpp) run(dir, taskname string, time_limit, memory_limit int) int {
-//	return run(dir, taskname, dir+"/input", dir+"/output",
-//		[]string{}, time_limit, memory_limit,
-//		append(SYSCALL_WHITELIST, C.sys_none),
-//		append(FILESYSTEM_WHITELIST, dir), 0)
-//}
-
-//// C
-//func (_ *c) run(dir, taskname string, time_limit, memory_limit int) int {
-//	return run(dir, taskname, dir+"/input", dir+"/output",
-//		[]string{}, time_limit, memory_limit,
-//		append(SYSCALL_WHITELIST, C.sys_none),
-//		append(FILESYSTEM_WHITELIST, dir), 0)
-//}
-
-//// Pascal
-//func (_ *pas) run(dir, taskname string, time_limit, memory_limit int) int {
-//	return run(dir, taskname, dir+"/input", dir+"/output",
-//		[]string{}, time_limit, memory_limit,
-//		append(SYSCALL_WHITELIST, C.sys_none),
-//		append(FILESYSTEM_WHITELIST, dir), 0)
-//}
-
-//// Python 2
-//func (_ *py2) run(dir, taskname string, time_limit, memory_limit int) int {
-//	return run(dir, "/usr/bin/python2", dir+"/input", dir+"/output",
-//		[]string{"-BSO", taskname + ".py"}, time_limit, memory_limit,
-//		append(SYSCALL_WHITELIST, C.sys_none),
-//		append(FILESYSTEM_WHITELIST, dir), 0)
-//}
-
-//// Python 3
-//func (_ *py3) run(dir, taskname string, time_limit, memory_limit int) int {
-//	return run(dir, "/usr/bin/python3", dir+"/input", dir+"/output",
-//		[]string{"-BSO", taskname + ".py"}, time_limit, memory_limit,
-//		append(SYSCALL_WHITELIST, C.sys_none),
-//		append(FILESYSTEM_WHITELIST, dir), 0)
-//}
-
-//// Java
-//func (_ *java) run(dir, taskname string, time_limit, memory_limit int) int {
-//	policyBox := rice.MustFindBox("langfiles")
-//	policyBytes, err := policyBox.Bytes("sandbox_java.policy")
-//	if err != nil {
-//		fmt.Println(err)
-//		return ER
-//	}
-
-//	err = writeNewFile(dir+"/policy", policyBytes)
-//	if err != nil {
-//		fmt.Println(err)
-//		return ER
-//	}
-
-//	return run(dir, "/usr/bin/java", dir+"/input", dir+"/output",
-//		[]string{"-XX:+UseSerialGC", "-Djava.security.manager=default",
-//			"-Djava.security.policy==" + dir + "/policy", "-Xss128m",
-//			"-Xms128m", "-Xmx" + strconv.Itoa(memory_limit) + "m", taskname},
-//		time_limit+1000, -1, []int32{}, []string{}, -1)
-//}
+func (_ *js) Name() string                 { return "JavaScript (Node.js)" }
+func (_ *js) SourceExtension() string      { return ".js" }
+func (_ *js) MimeType() string             { return "text/javascript" }
+func (_ *js) RequiresMultithreading() bool { return false }
+func (_ *js) UseMemoryLimit() bool         { return false }
+func (_ *js) CompilationCommand(sourceFilenames []string, executableFilename string) []string {
+	return nil
+}
+func (_ *js) CopyExtraFiles(location string) error { return nil }
+func (_ *js) EvaluationCommand(executableFilename string, args []string, memoryLimit int) []string {
+	path, _ := exec.LookPath("node")
+	return append([]string{path, "--max-old-space-size=" + strconv.Itoa(memoryLimit>>10), "--max-new-space-size=" + strconv.Itoa(memoryLimit), executableFilename + ".js"}, args...)
+}
