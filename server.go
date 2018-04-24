@@ -24,11 +24,12 @@ const (
 )
 
 type Server struct {
-	Port      int
-	DB        *Database
-	Reference *Reference
-	Judge     *Judge
-	Logger    *log.Logger
+	Port          int
+	DB            *Database
+	Reference     *Reference
+	Judge         *Judge
+	Logger        *log.Logger
+	DefaultLocale string
 
 	templates      *template.Template
 	sessionManager *SessionManager
@@ -136,10 +137,7 @@ func (srv *Server) getLang(r *http.Request) (i18n.TranslateFunc, error) {
 
 	acceptLocale := r.Header.Get("Accept-Language")
 
-	// TODO: handle default locale configuration
-	defaultLocale := "en-US"
-
-	return i18n.Tfunc(newLocale, pastLocale, acceptLocale, defaultLocale)
+	return i18n.Tfunc(newLocale, pastLocale, acceptLocale, srv.DefaultLocale)
 }
 
 // template renderer

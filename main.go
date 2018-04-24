@@ -31,6 +31,7 @@ func main() {
 	databasePtr := runCommand.String("database", "contests.zip", "Contests database file")
 	referencePtr := runCommand.String("reference", "reference.zip", "File where language reference is stored")
 	workersPtr := runCommand.Int("workers", 2, "Number of simultaneous judge workers")
+	localePtr := runCommand.String("locale", "en-US", "Default localization to use in web interface")
 	runCommand.BoolVar(&testingFlag, "testing", false, "Whether to use testing features or not (no authentication, reads password from ./pass file, uses judge_test as the contest, uses testing cookies session, prints debug messages)")
 
 	sourcePtr := builddbCommand.String("source", "contests", "Folder where contests data is located")
@@ -97,11 +98,12 @@ func main() {
 			defer judge.Stop()
 
 			server := &Server{
-				Port:      *portPtr,
-				DB:        db,
-				Reference: ref,
-				Judge:     judge,
-				Logger:    logger,
+				Port:          *portPtr,
+				DB:            db,
+				Reference:     ref,
+				Judge:         judge,
+				Logger:        logger,
+				DefaultLocale: *localePtr,
 			}
 			if err := server.Start(); err != nil {
 				return err
