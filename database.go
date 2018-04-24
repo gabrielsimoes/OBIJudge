@@ -211,15 +211,18 @@ func (db *Database) ContestTasks(name string) ([]TaskData, error) {
 		return []TaskData{}, err
 	}
 
-	// TODO: make this faster:
+	allTasks, err := db.Tasks()
+	if err != nil {
+		return []TaskData{}, err
+	}
 
 	var tasks []TaskData
 	for _, taskname := range contest.Tasks {
-		task, err := db.Task(taskname)
-		if err != nil {
-			return []TaskData{}, err
+		for _, task := range allTasks {
+			if task.Name == name {
+				tasks = append(tasks, task)
+			}
 		}
-		tasks = append(tasks, task)
 	}
 
 	return tasks, err
