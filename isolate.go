@@ -511,6 +511,10 @@ func (c *BoxConfig) setupRoot() error {
 		return err
 	}
 
+	if err := os.Mkdir("root/tmp", 0750); err != nil {
+		return err
+	}
+
 	for _, rule := range []struct {
 		in    string
 		out   string
@@ -523,6 +527,7 @@ func (c *BoxConfig) setupRoot() error {
 		{"lib64", "/lib64", DIR_FLAG_OPT},
 		{"proc", "/proc", 0},
 		{"usr", "/usr", 0},
+		{"etc", "/etc", 0},
 	} {
 		if testDir(rule.out) != nil {
 			if rule.flags&DIR_FLAG_OPT != 0 {
@@ -654,33 +659,23 @@ func (c *BoxConfig) setupFds() error {
 }
 
 func (c *BoxConfig) runChild() int {
-	startTime := time.Now()
-
 	if c.EnableCgroups {
 		if err := c.control.Add(cgroups.Process{Pid: os.Getpid()}); err != nil {
 			return 1
 		}
 	}
 
-	fmt.Println(time.Since(startTime))
-
 	if err := c.setupRoot(); err != nil {
 		return 2
 	}
-
-	fmt.Println(time.Since(startTime))
 
 	if err := c.setupRlimits(); err != nil {
 		return 3
 	}
 
-	fmt.Println(time.Since(startTime))
-
 	if err := c.setupCredentials(); err != nil {
 		return 4
 	}
-
-	fmt.Println(time.Since(startTime))
 
 	if err := c.setupFds(); err != nil {
 		return 5
