@@ -8,6 +8,10 @@
 		"translation": "Ir para o início"
 	},
 	{
+		"id": "internal_server_error",
+		"translation": "Erro interno do servidor"
+	},
+	{
 		"id": "login",
 		"translation": "Login"
 	},
@@ -24,8 +28,20 @@
 		"translation": "Selecione a competição"
 	},
 	{
+		"id": "contest_file_label",
+		"translation": "Envie o arquivo da competição:"
+	},
+	{
+		"id": "password_label",
+		"translation": "Senha:"
+	},
+	{
 		"id": "overview",
 		"translation": "Visão Geral"
+	},
+	{
+		"id": "submissions",
+		"translation": "Envios"
 	},
 	{
 		"id": "problem",
@@ -33,11 +49,31 @@
 	},
 	{
 		"id": "last_result",
-		"translation": "Resultado da última submissão"
+		"translation": "Resultado do último envio"
 	},
 	{
 		"id": "score",
 		"translation": "Pontuação"
+	},
+	{
+		"id": "when",
+		"translation": "Quando"
+	},
+	{
+		"id": "result",
+		"translation": "Resultado"
+	},
+	{
+		"id": "time",
+		"translation": "Tempo"
+	},
+	{
+		"id": "memory",
+		"translation": "Memória"
+	},
+	{
+		"id": "language",
+		"translation": "Linguagem"
 	},
 	{
 		"id": "logout",
@@ -84,51 +120,119 @@
 		"translation": "Linguagem"
 	},
 	{
-		"id": "result_batch",
-		"translation": "Conjunto"
+		"id": "use_custom_input",
+		"translation": "Usar entrada de teste"
 	},
 	{
-		"id": "result_code_0",
-		"translation": "-"
+		"id": "insert_custom_input",
+		"translation": "Insira a entrada aqui"
 	},
 	{
-		"id": "result_code_1",
-		"translation": "Resposta correta."
+		"id": "output_will_appear_here",
+		"translation": "A saída vai aparecer aqui"
 	},
 	{
-		"id": "result_code_2",
-		"translation": "Resposta incorreta."
-	},
-	{
-		"id": "result_code_3",
-		"translation": "Tempo limite excedido."
-	},
-	{
-		"id": "result_code_4",
-		"translation": "Limite de memória excedido."
-	},
-	{
-		"id": "result_code_5",
-		"translation": "Erro em tempo de execução."
-	},
-	{
-		"id": "result_code_6",
-		"translation": "Erro de compilação."
-	},
-	{
-		"id": "result_code_7",
-		"translation": "Violação de recursos permitidos."
-	},
-	{
-		"id": "result_code_8",
-		"translation": "ERRO!"
+		"id": "result_correct_only_means_no_errors_occurred_your_answer_may_be_wrong",
+		"translation": "\"Correto\" apenas significa que não ocorreram erros. Sua resposta pode estar errada."
 	},
 	{
 		"id": "copy",
 		"translation": "Copiar"
 	},
 	{
-		"id": "test_case_copied",
-		"translation": "Caso de teste copiado!"
+		"id": "copy_code",
+		"translation": "Copiar código"
+	},
+	{
+		"id": "copied",
+		"translation": "Copiado!"
+	},
+	{
+		"id": "submission_sent",
+		"translation": "Enviado!"
+	},
+	{
+		"id": "batch",
+		"translation": "Conjunto"
+	},
+	{
+		"id": "error",
+		"translation": "Erro!"
+	},
+	{
+		"id": "explanation_error",
+		"translation": "Um erro interno ocorreu."
+	},
+	{
+		"id": "result_comp_timeout",
+		"translation": "Compilação excedeu tempo limite"
+	},
+	{
+		"id": "explanation_result_comp_timeout",
+		"translation": "Seu programa excedeu o tempo limite de compilação.\nIsso pode ter sido causado por um uso excessivo de templates de C++, por exemplo."
+	},
+	{
+		"id": "result_comp_signal",
+		"translation": "Compilação terminada por sinal"
+	},
+	{
+		"id": "explanation_result_comp_signal",
+		"translation": "Seu programa foi terminado forçadamente pelo sinal especificado.\nDentre outras coisas, isso pode ter sido causado por exceder o limite de memória para a compilação, talvez por um uso excessivo de templates de C++, por exemplo."
+	},
+	{
+		"id": "result_comp_failed",
+		"translation": "Compilação falhou"
+	},
+	{
+		"id": "explanation_result_comp_failed",
+		"translation": "Seu programa não compilou corretamente."
+	},
+	{
+		"id": "result_comp_success",
+		"translation": "Compilado com sucesso"
+	},
+	{
+		"id": "explanation_result_comp_success",
+		"translation": "Seu programa compilou corretamente."
+	},
+	{
+		"id": "result_timeout",
+		"translation": "Tempo limite excedido"
+	},
+	{
+		"id": "explanation_result_timeout",
+		"translation": "Seu programa demorou muito tempo para executar."
+	},
+	{
+		"id": "result_signal",
+		"translation": "Terminado por sinal"
+	},
+	{
+		"id": "explanation_result_signal",
+		"translation": "Seu programa foi terminado forçadamente pelo sinal especificado.\nDentre outras coisas, isso pode ter sido causado por exceder o limite de memória.\nSe for esse o caso, note que o uso de memória especificado é aquele logo antes da alocação que causou o sinal."
+	},
+	{
+		"id": "result_failed",
+		"translation": "Falhou"
+	},
+	{
+		"id": "explanation_result_failed",
+		"translation": "Seu programa falhou porque retornou um código diferente de 0."
+	},
+	{
+		"id": "result_wrong",
+		"translation": "Errado"
+	},
+	{
+		"id": "explanation_result_wrong",
+		"translation": "Sua submissão foi executada, mas não resultou na resposta correta."
+	},
+	{
+		"id": "result_correct",
+		"translation": "Correto"
+	},
+	{
+		"id": "explanation_result_correct",
+		"translation": "Sua submissão foi executada e resultou na resposta correta."
 	}
 ]

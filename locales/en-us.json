@@ -8,6 +8,10 @@
 		"translation": "Go to home"
 	},
 	{
+		"id": "internal_server_error",
+		"translation": "Internal server error"
+	},
+	{
 		"id": "login",
 		"translation": "Login"
 	},
@@ -24,8 +28,20 @@
 		"translation": "Select the competition"
 	},
 	{
+		"id": "contest_file_label",
+		"translation": "Send contest file:"
+	},
+	{
+		"id": "password_label",
+		"translation": "Password:"
+	},
+	{
 		"id": "overview",
 		"translation": "Overview"
+	},
+	{
+		"id": "submissions",
+		"translation": "Submissions"
 	},
 	{
 		"id": "problem",
@@ -38,6 +54,26 @@
 	{
 		"id": "score",
 		"translation": "Score"
+	},
+	{
+		"id": "when",
+		"translation": "When"
+	},
+	{
+		"id": "result",
+		"translation": "Result"
+	},
+	{
+		"id": "time",
+		"translation": "Time"
+	},
+	{
+		"id": "memory",
+		"translation": "Memory"
+	},
+	{
+		"id": "language",
+		"translation": "Language"
 	},
 	{
 		"id": "logout",
@@ -84,51 +120,119 @@
 		"translation": "Language"
 	},
 	{
-		"id": "result_batch",
-		"translation": "Batch"
+		"id": "use_custom_input",
+		"translation": "Use custom input"
 	},
 	{
-		"id": "result_code_0",
-		"translation": "-"
+		"id": "insert_custom_input",
+		"translation": "Insert custom input here"
 	},
 	{
-		"id": "result_code_1",
-		"translation": "Correct answer."
+		"id": "output_will_appear_here",
+		"translation": "Output will appear here"
 	},
 	{
-		"id": "result_code_2",
-		"translation": "Wrong answer."
-	},
-	{
-		"id": "result_code_3",
-		"translation": "Time limit exceeded"
-	},
-	{
-		"id": "result_code_4",
-		"translation": "Memory limit exceeded."
-	},
-	{
-		"id": "result_code_5",
-		"translation": "Runtime error."
-	},
-	{
-		"id": "result_code_6",
-		"translation": "Compilation error."
-	},
-	{
-		"id": "result_code_7",
-		"translation": "Resource violation."
-	},
-	{
-		"id": "result_code_8",
-		"translation": "ERROR!"
+		"id": "result_correct_only_means_no_errors_occurred_your_answer_may_be_wrong",
+		"translation": "\"Correct\" only means no errors occurred. Your answer may be wrong."
 	},
 	{
 		"id": "copy",
 		"translation": "Copy"
 	},
 	{
-		"id": "test_case_copied",
-		"translation": "Test case copied!"
+		"id": "copy_code",
+		"translation": "Copy code"
+	},
+	{
+		"id": "copied",
+		"translation": "Copied!"
+	},
+	{
+		"id": "submission_sent",
+		"translation": "Submission sent!"
+	},
+	{
+		"id": "batch",
+		"translation": "Batch"
+	},
+	{
+		"id": "error",
+		"translation": "Error!"
+	},
+	{
+		"id": "explanation_error",
+		"translation": "An internal error has occurred."
+	},
+	{
+		"id": "result_comp_timeout",
+		"translation": "Compilation time limit exceeded"
+	},
+	{
+		"id": "explanation_result_comp_timeout",
+		"translation": "Your submission exceeded the time limit while compiling.\nThis might be caused by an excessive use of C++ templates, for example."
+	},
+	{
+		"id": "result_comp_signal",
+		"translation": "Compilation killed by signal"
+	},
+	{
+		"id": "explanation_result_comp_signal",
+		"translation": "Your submission was killed with the specified signal.\nAmong other things, this might be caused by exceeding the memory limit for the compilation, and in turn by an excessive use of C++ templates, for example."
+	},
+	{
+		"id": "result_comp_failed",
+		"translation": "Compilation failed"
+	},
+	{
+		"id": "explanation_result_comp_failed",
+		"translation": "Your submission did not compile correctly."
+	},
+	{
+		"id": "result_comp_success",
+		"translation": "Compilation succeeded"
+	},
+	{
+		"id": "explanation_result_comp_success",
+		"translation": "Your submission successfully compiled to an excutable."
+	},
+	{
+		"id": "result_timeout",
+		"translation": "Time limit exceeded"
+	},
+	{
+		"id": "explanation_result_timeout",
+		"translation": "Your submission took too much time to execute."
+	},
+	{
+		"id": "result_signal",
+		"translation": "Killed by signal"
+	},
+	{
+		"id": "explanation_result_signal",
+		"translation": "Your submission was killed with the specified signal.\nAmong other things, this might be caused by exceeding the memory limit.\nNote that if this is the reason, the memory usage visible in the submission details is the usage before the allocation that caused the signal."
+	},
+	{
+		"id": "result_failed",
+		"translation": "Failed"
+	},
+	{
+		"id": "explanation_result_failed",
+		"translation": "Your submission failed because it exited with a return code different from 0."
+	},
+	{
+		"id": "result_wrong",
+		"translation": "Wrong"
+	},
+	{
+		"id": "explanation_result_wrong",
+		"translation": "Your submission ran, but didn't give the correct answer"
+	},
+	{
+		"id": "result_correct",
+		"translation": "Correct"
+	},
+	{
+		"id": "explanation_result_correct",
+		"translation": "Your submission ran and gave the correct answer"
 	}
 ]

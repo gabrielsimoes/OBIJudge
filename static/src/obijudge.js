@@ -153,8 +153,13 @@ function setupCodeEditor() {
   });
 
   $('input#custom-input').change(function() {
-    if (this.checked) $('div#customInputOutput').show();
-    else $('div#customInputOutput').hide();
+    if (this.checked) {
+      $('div#customInputOutput').show();
+      $('div#test-info').show();
+    } else {
+      $('div#customInputOutput').hide();
+      $('div#test-info').hide();
+    }
   });
 
   var form = $('form#submission-form');
@@ -248,30 +253,28 @@ function formatBatchesDuration(data) {
   return formatDuration(duration);
 };
 
-function formatMemory(bytes) {
-  if (bytes == 0)
+function formatMemory(kb) {
+  if (kb == 0)
     return "-"
-  else if (bytes < (1 << 10))
-    return bytes + " Bytes";
-  else if (bytes < (1 << 20))
-    return (bytes / (1 << 10)).toFixed(2) + " KB";
-  else if (bytes < (1 << 30))
-    return (bytes / (1 << 20)).toFixed(2) + " MB";
+  else if (kb < (1 << 10))
+    return kb + " KB";
+  else if (kb < (1 << 20))
+    return (kb / (1 << 10)).toFixed(2) + " MB";
   else
-    return (bytes / (1 << 30)).toFixed(2) + " GB";
+    return (kb / (1 << 20)).toFixed(2) + " GB";
 };
 
 function formatBatchesMemory(data) {
   if (data.Batches == null) return "-"
 
-  var bytes = 0;
+  var kb = 0;
   for (var i = 0; i < data.Batches.length; i++) {
-    if (data.Batches[i].Memory > bytes) {
-      bytes = data.Batches[i].Memory;
+    if (data.Batches[i].Memory > kb) {
+      kb = data.Batches[i].Memory;
     }
   }
 
-  return formatMemory(bytes)
+  return formatMemory(kb)
 };
 
 function formatCompilationKey(data) {
@@ -348,7 +351,7 @@ function formatCompilationExtra(data, tag) {
   tag.append(resultDiv);
 
   t("explanation_" + key, function(explanation) {
-    explanationDiv.text(explanation);
+    explanationDiv.html(explanation.replace(/\n/g, '<br />'));
   });
   tag.append(explanationDiv);
 
@@ -384,7 +387,7 @@ function formatResultExtra(result, batch, score, time, memory, extra, tag) {
   tag.append(resultDiv);
 
   t("explanation_" + key, function(explanation) {
-    explanationDiv.text(explanation);
+    explanationDiv.html(explanation.replace(/\n/g, '<br />'));
   });
   tag.append(explanationDiv);
 
@@ -432,7 +435,7 @@ function formatErrorExtra(error, tag) {
   tag.append(resultDiv);
 
   t("explanation_error", function(explanation) {
-    explanationDiv.text(explanation);
+    explanationDiv.html(explanation.replace(/\n/g, '<br />'));
   });
   tag.append(explanationDiv);
 
