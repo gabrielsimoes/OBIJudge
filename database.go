@@ -18,14 +18,14 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// struct for a contest's information
+// ContestData stores a contest's information
 type ContestData struct {
 	Name  string
 	Title string
 	Tasks []TaskData
 }
 
-// struct for a task's information
+// TaskData stores a task's information
 type TaskData struct {
 	Name        string
 	Title       string
@@ -35,33 +35,36 @@ type TaskData struct {
 	Batches     []BatchData
 }
 
-// struct for information about a batch of test cases
+// BatchData stores information about a batch of test cases
 type BatchData struct {
 	Value int
 	Tests []int
 }
 
-// struct for a tasks' html and pdf statements
+// StatementData stores a tasks' html and pdf statements
 type StatementData struct {
 	Name string
 	HTML []byte
 	PDF  []byte
 }
 
-// struct for test cases input and output
+// TestData stores a test case's input and output
 type TestData struct {
 	N      int
 	Input  []byte
 	Output []byte
 }
 
-// struct for keeping user-specific database
+// Database stores information related to a user-specific database
 type Database struct {
 	path    string
 	archive *zip.ReadCloser
 	lock    sync.Mutex
 }
 
+// OpenDatabase will copy the database file from formFile to a random location
+// inside the specified folder and return a Database object representing the
+// database.
 func OpenDatabase(formFile multipart.File, folder string) (*Database, error) {
 	randKey, _ := generateKey(32)
 	path := filepath.Join(folder, string(randKey))
@@ -90,6 +93,8 @@ func OpenDatabase(formFile multipart.File, folder string) (*Database, error) {
 	}, nil
 }
 
+// Clear should be called when the database will not be used anymore, probably
+// at the end of the program execution or at user logout.
 func (db *Database) Clear() error {
 	db.lock.Lock()
 	defer db.lock.Unlock()
@@ -170,6 +175,9 @@ func (db *Database) readSecure(file *zip.File, key []byte) ([]byte, error) {
 	return content, nil
 }
 
+// Authenticate is used to check if user-specified password matches the hash
+// located inside the database file. This same password will have to be
+// specified in order to access the encrypted contents inside the database file.
 func (db *Database) Authenticate(password []byte) (bool, error) {
 	file := db.filterFile("/hash")
 	if file == nil {
@@ -184,6 +192,8 @@ func (db *Database) Authenticate(password []byte) (bool, error) {
 	return bcrypt.CompareHashAndPassword(hash, password) == nil, nil
 }
 
+// Contest returns a ContestData object corresponding to the contest stored
+// inside the database.
 func (db *Database) Contest() (ContestData, error) {
 	file := db.filterFile("/info.json")
 	if file == nil {
@@ -200,6 +210,8 @@ func (db *Database) Contest() (ContestData, error) {
 	return contest, err
 }
 
+// Tasks returns an array []TaskData corresponding to the tasks stored inside
+// the database.
 func (db *Database) Tasks() ([]TaskData, error) {
 	contest, err := db.Contest()
 	if err != nil {
@@ -209,6 +221,8 @@ func (db *Database) Tasks() ([]TaskData, error) {
 	return contest.Tasks, nil
 }
 
+// Task returns a single TaskData corresponding to the task with the specified
+// name, stored inside the database.
 func (db *Database) Task(name string) (TaskData, error) {
 	tasks, err := db.Tasks()
 	if err != nil {
@@ -224,6 +238,8 @@ func (db *Database) Task(name string) (TaskData, error) {
 	return TaskData{}, errors.New("No task named " + name)
 }
 
+// Statament returns a single StatementData corresponding to the statement of
+// the task with the specified name, stored inside the database.
 func (db *Database) Statement(name string, key []byte) (StatementData, error) {
 	statement := StatementData{}
 
@@ -247,6 +263,8 @@ func (db *Database) Statement(name string, key []byte) (StatementData, error) {
 	return statement, nil
 }
 
+// Tests returns an array []TestData corresponding to all the tests of the
+// task with the specified name, stored inside the database.
 func (db *Database) Tests(name string, key []byte) ([]TestData, error) {
 	testFiles := db.filterFolder("/" + name + "/tests/")
 	tests := make([]TestData, len(testFiles)/2)
@@ -271,11 +289,16 @@ func (db *Database) Tests(name string, key []byte) ([]TestData, error) {
 	return tests, err
 }
 
+// BuildDatabase uses the files from the specified source folder to create a zip
+// database in the correct format at the specified target folder. It will
+// encrypt any sensitive files with the specified password, or ask for a new
+// password. If the writePassword flag is set to true, it will write the used
+// password to a file named pass in the current folder, for debug purposes.
 func BuildDatabase(source, target string, password []byte, writePassword bool) error {
 	source = filepath.Clean(source)
 	target = filepath.Clean(target)
 
-	// first, lets initialize our zip database
+	// Initialize zip database
 	_ = os.Remove(target)
 	file, err := os.Create(target)
 	if err != nil {
@@ -286,7 +309,7 @@ func BuildDatabase(source, target string, password []byte, writePassword bool) e
 	archive := zip.NewWriter(file)
 	defer archive.Close()
 
-	// choose password
+	// Choose password
 	if len(password) != 0 && len(password) != 16 {
 		return errors.New("Password has to be 16-letters long")
 	} else if len(password) == 0 {
@@ -302,7 +325,7 @@ func BuildDatabase(source, target string, password []byte, writePassword bool) e
 		ioutil.WriteFile("pass", password, 0644)
 	}
 
-	// now lets store this key's hash in our database
+	// Store the key's hash in the database
 	hash, err := bcrypt.GenerateFromPassword(password, 14)
 	if err != nil {
 		return err
@@ -318,6 +341,7 @@ func BuildDatabase(source, target string, password []byte, writePassword bool) e
 		return err
 	}
 
+	// Walk over all files, adding them to the zip database
 	err = filepath.Walk(source, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
