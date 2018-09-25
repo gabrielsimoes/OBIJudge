@@ -13,32 +13,58 @@ import (
 )
 
 const (
+	// ResultNothing means no result has been attributed yet.
 	ResultNothing int = iota
+
+	// ResultTimeout means the program execution has timed-out.
 	ResultTimeout
+
+	// ResultSignal means the program has been signaled, probably due to a
+	// violation to the memory limits.
 	ResultSignal
+
+	// ResultFailed means the program has failed executing and returned a
+	// non-zero exit code.
 	ResultFailed
+
+	// ResultCorrect means the program has successfully executed and its output
+	// was correct.
 	ResultCorrect
+
+	// ResultWrong means the program output was not correct.
 	ResultWrong
 )
 
 const (
+	// ResultCompNothing means no result has been attributed to the compilation.
 	ResultCompNothing int = iota
+
+	// ResultCompTimeout means the compilation has timed-out.
 	ResultCompTimeout
+
+	// ResultCompSignal means the compilation was killed or signaled, probably
+	// due to a violation to the memory limits.
 	ResultCompSignal
+
+	// ResultCompFailed means the compilation has failed and returned a
+	// non-zero exit code.
 	ResultCompFailed
+
+	// ResultCompSuccess means the compilation was successful.
 	ResultCompSuccess
 )
 
 const (
-	NUM_WORKERS = 2
-	ENV_HOME    = "HOME=/box"
-	ENV_PATH    = "PATH=/usr/bin:/usr/local/bin:/box"
+	numWorkers = 2
+	envHOME    = "HOME=/box"
+	envPATH    = "PATH=/usr/bin:/usr/local/bin:/box"
 )
 
 var (
-	ENV []string = []string{ENV_HOME, ENV_PATH}
+	env = []string{envHOME, envPATH}
 )
 
+// Submission stores information related to a single user submission.
 type Submission struct {
 	ID   uint32
 	SID  string
@@ -50,6 +76,7 @@ type Submission struct {
 	Key  []byte
 }
 
+// CustomTest stores information related to custom test requested by the user.
 type CustomTest struct {
 	ID       uint32
 	SID      string
@@ -60,6 +87,7 @@ type CustomTest struct {
 	Lang     Language
 }
 
+// TaskVerdict is used to indicate the verdict of a user submission.
 type TaskVerdict struct {
 	VerdictInfo
 	Compilation int
@@ -68,6 +96,7 @@ type TaskVerdict struct {
 	Extra       string
 }
 
+// BatchVerdict is used to indicate the verdict of a single batch from the task.
 type BatchVerdict struct {
 	Result int
 	Score  int
@@ -76,6 +105,8 @@ type BatchVerdict struct {
 	Extra  string
 }
 
+// CustomTestVerdict is used to indicate the verdict of a custom test requested
+// by the user.
 type CustomTestVerdict struct {
 	VerdictInfo
 	Compilation int
@@ -87,6 +118,7 @@ type CustomTestVerdict struct {
 	Extra       string
 }
 
+// VerdictInfo is a common struct share by all verdicts above.
 type VerdictInfo struct {
 	ID       uint32
 	SID      string
@@ -97,6 +129,7 @@ type VerdictInfo struct {
 	LangName string
 }
 
+// Judge stores information related to a single Judge instance.
 type Judge struct {
 	NumWorkers         int
 	SubmissionChannel  chan<- Submission
@@ -109,6 +142,7 @@ type Judge struct {
 	workers []*judgeWorker
 }
 
+// Start is used to initialize a judge instance, like a constructor.
 func (j *Judge) Start() {
 	submissionChannel := make(chan Submission, 100)
 	taskVerdictChannel := make(chan TaskVerdict, 100)
@@ -135,6 +169,8 @@ func (j *Judge) Start() {
 	}
 }
 
+// Stop should be called after the judge instance will not be used anymore,
+// typically at the end of the program execution.
 func (j *Judge) Stop() {
 	for _, worker := range j.workers {
 		worker.stop()
@@ -144,18 +180,23 @@ func (j *Judge) Stop() {
 	close(j.TestChannel)
 }
 
+// SendSubmission is used to request that a judge instance receives a
+// user submission.
 func (j *Judge) SendSubmission(s Submission) uint32 {
 	s.ID = atomic.AddUint32(&j.subID, 1)
 	j.SubmissionChannel <- s
 	return s.ID
 }
 
+// SendCustomTest is used to request that a judge instance receives a
+// custom test requested by the user.
 func (j *Judge) SendCustomTest(t CustomTest) uint32 {
 	t.ID = atomic.AddUint32(&j.testID, 1)
 	j.TestChannel <- t
 	return t.ID
 }
 
+// judgeWorkers are simultaneous judging units of a single judge instance.
 type judgeWorker struct {
 	id                 int
 	submissionChannel  <-chan Submission
@@ -243,7 +284,7 @@ func (w *judgeWorker) compile(box *Box, compilationCommand []string) (bool, int,
 	result := box.Run(&BoxConfig{
 		Path:          compilationCommand[0],
 		Args:          compilationCommand,
-		Env:           ENV,
+		Env:           env,
 		Stdout:        outputFile,
 		Stderr:        outputFile,
 		EnableCgroups: true,
@@ -265,16 +306,14 @@ func (w *judgeWorker) compile(box *Box, compilationCommand []string) (bool, int,
 
 	if result.Status == StatusError {
 		return false, 0, result.Error
-	} else {
-		if result.Status == StatusWTL || result.Status == StatusCTL {
-			return true, ResultCompTimeout, ""
-		} else if result.Status == StatusSig {
-			return true, ResultCompSignal, result.Signal.String()
-		} else if result.Status == StatusExit {
-			return true, ResultCompFailed, "Exit Code: " + strconv.Itoa(result.ExitCode) + "\n" + string(output)
-		} else if result.Status == StatusOK {
-			return true, ResultCompSuccess, ""
-		}
+	} else if result.Status == StatusWTL || result.Status == StatusCTL {
+		return true, ResultCompTimeout, ""
+	} else if result.Status == StatusSig {
+		return true, ResultCompSignal, result.Signal.String()
+	} else if result.Status == StatusExit {
+		return true, ResultCompFailed, "Exit Code: " + strconv.Itoa(result.ExitCode) + "\n" + string(output)
+	} else if result.Status == StatusOK {
+		return true, ResultCompSuccess, ""
 	}
 
 	return true, ResultCompSuccess, ""
@@ -337,7 +376,7 @@ func (w *judgeWorker) judge(s Submission) TaskVerdict {
 				boxConfig := &BoxConfig{
 					Path:          command[0],
 					Args:          command,
-					Env:           ENV,
+					Env:           env,
 					Stdin:         bytes.NewReader(test.Input),
 					Stdout:        outputFile,
 					Stderr:        outputFile,
@@ -369,21 +408,21 @@ func (w *judgeWorker) judge(s Submission) TaskVerdict {
 
 				if result.Status == StatusError {
 					return TaskVerdict{Error: true, Extra: result.Error}
-				} else {
-					results[i].time = result.CPUTime
-					results[i].memory = result.Memory
+				}
 
-					if result.Status == StatusWTL || result.Status == StatusCTL {
-						results[i].code = ResultTimeout
-					} else if result.Status == StatusSig {
-						results[i].code = ResultSignal
-						results[i].extra = result.Signal.String()
-					} else if result.Status == StatusExit {
-						results[i].code = ResultFailed
-						results[i].extra = "Exit Code: " + strconv.Itoa(result.ExitCode)
-					} else if result.Status == StatusOK {
-						results[i].code = ResultCorrect
-					}
+				results[i].time = result.CPUTime
+				results[i].memory = result.Memory
+
+				if result.Status == StatusWTL || result.Status == StatusCTL {
+					results[i].code = ResultTimeout
+				} else if result.Status == StatusSig {
+					results[i].code = ResultSignal
+					results[i].extra = result.Signal.String()
+				} else if result.Status == StatusExit {
+					results[i].code = ResultFailed
+					results[i].extra = "Exit Code: " + strconv.Itoa(result.ExitCode)
+				} else if result.Status == StatusOK {
+					results[i].code = ResultCorrect
 				}
 
 				if results[i].code == ResultCorrect {
@@ -445,7 +484,7 @@ func (w *judgeWorker) test(t CustomTest) CustomTestVerdict {
 	boxConfig := &BoxConfig{
 		Path:          command[0],
 		Args:          command,
-		Env:           ENV,
+		Env:           env,
 		Stdin:         bytes.NewReader(t.Input),
 		Stdout:        outputFile,
 		EnableCgroups: true,
