@@ -300,7 +300,7 @@ func (srv *Server) taskHandler(s *Session, w http.ResponseWriter, r *http.Reques
 		"HasPDF":        len(statement.PDF) > 0,
 		"HasHTML":       len(statement.HTML) > 0,
 		"HTMLStatement": template.HTML(string(statement.HTML)),
-		"Langs":         Languages,
+		"Langs":         AllLanguages,
 	}, http.StatusOK)
 }
 
@@ -355,13 +355,13 @@ func (srv *Server) submitHandler(s *Session, w http.ResponseWriter, r *http.Requ
 	}
 
 	langIndex, err := strconv.Atoi(r.Form.Get("lang"))
-	if err != nil || langIndex > len(Languages) {
+	if err != nil || langIndex > len(AllLanguages) {
 		w.WriteHeader(http.StatusInternalServerError)
 		encoder.Encode(result{"Language " + r.Form.Get("lang") + " doesn't have a runner!", 0})
 		return
 	}
 
-	lang := Languages[langIndex]
+	lang := AllLanguages[langIndex]
 
 	subID := srv.Judge.SendSubmission(Submission{
 		SID:  s.GetID(),
@@ -419,13 +419,13 @@ func (srv *Server) testHandler(s *Session, w http.ResponseWriter, r *http.Reques
 	}
 
 	langIndex, err := strconv.Atoi(r.Form.Get("lang"))
-	if err != nil || langIndex > len(Languages) {
+	if err != nil || langIndex > len(AllLanguages) {
 		w.WriteHeader(http.StatusInternalServerError)
 		encoder.Encode(result{"Language " + r.Form.Get("lang") + " doesn't have a runner!", 0})
 		return
 	}
 
-	lang := Languages[langIndex]
+	lang := AllLanguages[langIndex]
 
 	input := []byte(r.Form.Get("input"))
 

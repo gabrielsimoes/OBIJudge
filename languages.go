@@ -5,10 +5,11 @@ import (
 	"strconv"
 )
 
-var (
-	Languages = []Language{&cpp{}, &c{}, &java{}, &pas{}, &py2{}, &py3{}, &js{}}
-)
+// AllLanguages is an array with all the programming languages support by the judge.
+var AllLanguages = []Language{&cpp{}, &c{}, &java{}, &pas{}, &py2{}, &py3{}, &js{}}
 
+// Language keeps information and methods related to a single programming
+// language, indicating how it should be judged.
 type Language interface {
 	// Returns a name that identifies the language. e.g. C++11 (g++)
 	Name() string
@@ -37,121 +38,121 @@ type Language interface {
 
 type cpp struct{}
 
-func (_ *cpp) Name() string                 { return "C++11 (g++)" }
-func (_ *cpp) SourceExtension() string      { return ".cpp" }
-func (_ *cpp) MimeType() string             { return "text/x-c++src" }
-func (_ *cpp) RequiresMultithreading() bool { return false }
-func (_ *cpp) UseMemoryLimit() bool         { return true }
-func (_ *cpp) CompilationCommand(sourceFilenames []string, executableFilename string) []string {
+func (*cpp) Name() string                 { return "C++11 (g++)" }
+func (*cpp) SourceExtension() string      { return ".cpp" }
+func (*cpp) MimeType() string             { return "text/x-c++src" }
+func (*cpp) RequiresMultithreading() bool { return false }
+func (*cpp) UseMemoryLimit() bool         { return true }
+func (*cpp) CompilationCommand(sourceFilenames []string, executableFilename string) []string {
 	path, _ := exec.LookPath("g++")
 	command := []string{path, "-DEVAL", "-std=c++11", "-O2", "-lm", "-pipe", "-static", "-s", "-o", executableFilename}
 	return append(command, sourceFilenames...)
 }
-func (_ *cpp) CopyExtraFiles(location string) error { return nil }
-func (_ *cpp) EvaluationCommand(executableFilename string, args []string, memoryLimit int) []string {
+func (*cpp) CopyExtraFiles(location string) error { return nil }
+func (*cpp) EvaluationCommand(executableFilename string, args []string, memoryLimit int) []string {
 	return append([]string{"./" + executableFilename}, args...)
 }
 
 type c struct{}
 
-func (_ *c) Name() string                 { return "C (gcc)" }
-func (_ *c) SourceExtension() string      { return ".c" }
-func (_ *c) MimeType() string             { return "text/x-csrc" }
-func (_ *c) RequiresMultithreading() bool { return false }
-func (_ *c) UseMemoryLimit() bool         { return true }
-func (_ *c) CompilationCommand(sourceFilenames []string, executableFilename string) []string {
+func (*c) Name() string                 { return "C (gcc)" }
+func (*c) SourceExtension() string      { return ".c" }
+func (*c) MimeType() string             { return "text/x-csrc" }
+func (*c) RequiresMultithreading() bool { return false }
+func (*c) UseMemoryLimit() bool         { return true }
+func (*c) CompilationCommand(sourceFilenames []string, executableFilename string) []string {
 	path, _ := exec.LookPath("gcc")
 	command := []string{path, "-DEVAL", "-O2", "-lm", "-pipe", "-static", "-s", "-o", executableFilename}
 	return append(command, sourceFilenames...)
 }
-func (_ *c) CopyExtraFiles(location string) error { return nil }
-func (_ *c) EvaluationCommand(executableFilename string, args []string, memoryLimit int) []string {
+func (*c) CopyExtraFiles(location string) error { return nil }
+func (*c) EvaluationCommand(executableFilename string, args []string, memoryLimit int) []string {
 	return append([]string{"./" + executableFilename}, args...)
 }
 
 type java struct{}
 
-func (_ *java) Name() string                 { return "Java (JDK)" }
-func (_ *java) SourceExtension() string      { return ".java" }
-func (_ *java) MimeType() string             { return "text/x-java" }
-func (_ *java) RequiresMultithreading() bool { return true }
-func (_ *java) UseMemoryLimit() bool         { return false }
-func (_ *java) CompilationCommand(sourceFilenames []string, executableFilename string) []string {
+func (*java) Name() string                 { return "Java (JDK)" }
+func (*java) SourceExtension() string      { return ".java" }
+func (*java) MimeType() string             { return "text/x-java" }
+func (*java) RequiresMultithreading() bool { return true }
+func (*java) UseMemoryLimit() bool         { return false }
+func (*java) CompilationCommand(sourceFilenames []string, executableFilename string) []string {
 	path, _ := exec.LookPath("javac")
 	command := []string{path, "-encoding", "UTF-8", "-sourcepath", ".", "-d", "."}
 	return append(command, sourceFilenames...)
 }
-func (_ *java) CopyExtraFiles(location string) error { return nil }
-func (_ *java) EvaluationCommand(executableFilename string, args []string, memoryLimit int) []string {
+func (*java) CopyExtraFiles(location string) error { return nil }
+func (*java) EvaluationCommand(executableFilename string, args []string, memoryLimit int) []string {
 	path, _ := exec.LookPath("java")
 	return append([]string{path, "-Dfile.encoding=UTF-8", "-XX:+UseSerialGC", "-Xss64m", "-Xmx" + strconv.Itoa(memoryLimit) + "k", executableFilename}, args...)
 }
 
 type pas struct{}
 
-func (_ *pas) Name() string                 { return "Pascal (fpc)" }
-func (_ *pas) SourceExtension() string      { return ".pas" }
-func (_ *pas) MimeType() string             { return "text/x-pascal" }
-func (_ *pas) RequiresMultithreading() bool { return false }
-func (_ *pas) UseMemoryLimit() bool         { return true }
-func (_ *pas) CompilationCommand(sourceFilenames []string, executableFilename string) []string {
+func (*pas) Name() string                 { return "Pascal (fpc)" }
+func (*pas) SourceExtension() string      { return ".pas" }
+func (*pas) MimeType() string             { return "text/x-pascal" }
+func (*pas) RequiresMultithreading() bool { return false }
+func (*pas) UseMemoryLimit() bool         { return true }
+func (*pas) CompilationCommand(sourceFilenames []string, executableFilename string) []string {
 	path, _ := exec.LookPath("fpc")
 	command := []string{path, "-dEVAL", "-XS", "-Xt", "-O2", "-o" + executableFilename}
 	return append(command, sourceFilenames...)
 }
-func (_ *pas) CopyExtraFiles(location string) error { return nil }
-func (_ *pas) EvaluationCommand(executableFilename string, args []string, memoryLimit int) []string {
+func (*pas) CopyExtraFiles(location string) error { return nil }
+func (*pas) EvaluationCommand(executableFilename string, args []string, memoryLimit int) []string {
 	return append([]string{"./" + executableFilename}, args...)
 }
 
 type py2 struct{}
 
-func (_ *py2) Name() string                 { return "Python 2" }
-func (_ *py2) SourceExtension() string      { return ".py" }
-func (_ *py2) MimeType() string             { return "text/x-python" }
-func (_ *py2) RequiresMultithreading() bool { return false }
-func (_ *py2) UseMemoryLimit() bool         { return true }
-func (_ *py2) CompilationCommand(sourceFilenames []string, executableFilename string) []string {
+func (*py2) Name() string                 { return "Python 2" }
+func (*py2) SourceExtension() string      { return ".py" }
+func (*py2) MimeType() string             { return "text/x-python" }
+func (*py2) RequiresMultithreading() bool { return false }
+func (*py2) UseMemoryLimit() bool         { return true }
+func (*py2) CompilationCommand(sourceFilenames []string, executableFilename string) []string {
 	path, _ := exec.LookPath("python2")
 	command := []string{path, "-m", "py_compile"}
 	return append(command, sourceFilenames...)
 }
-func (_ *py2) CopyExtraFiles(location string) error { return nil }
-func (_ *py2) EvaluationCommand(executableFilename string, args []string, memoryLimit int) []string {
+func (*py2) CopyExtraFiles(location string) error { return nil }
+func (*py2) EvaluationCommand(executableFilename string, args []string, memoryLimit int) []string {
 	path, _ := exec.LookPath("python2")
 	return append([]string{path, executableFilename + ".pyc"}, args...)
 }
 
 type py3 struct{}
 
-func (_ *py3) Name() string                 { return "Python 3" }
-func (_ *py3) SourceExtension() string      { return ".py" }
-func (_ *py3) MimeType() string             { return "text/x-python" }
-func (_ *py3) RequiresMultithreading() bool { return false }
-func (_ *py3) UseMemoryLimit() bool         { return true }
-func (_ *py3) CompilationCommand(sourceFilenames []string, executableFilename string) []string {
+func (*py3) Name() string                 { return "Python 3" }
+func (*py3) SourceExtension() string      { return ".py" }
+func (*py3) MimeType() string             { return "text/x-python" }
+func (*py3) RequiresMultithreading() bool { return false }
+func (*py3) UseMemoryLimit() bool         { return true }
+func (*py3) CompilationCommand(sourceFilenames []string, executableFilename string) []string {
 	path, _ := exec.LookPath("python3")
 	command := []string{path, "-c", "import py_compile as m; m.compile(\"" + sourceFilenames[0] + "\", \"" + executableFilename + "\", doraise=True)"}
 	return command
 }
-func (_ *py3) CopyExtraFiles(location string) error { return nil }
-func (_ *py3) EvaluationCommand(executableFilename string, args []string, memoryLimit int) []string {
+func (*py3) CopyExtraFiles(location string) error { return nil }
+func (*py3) EvaluationCommand(executableFilename string, args []string, memoryLimit int) []string {
 	path, _ := exec.LookPath("python3")
 	return append([]string{path, executableFilename}, args...)
 }
 
 type js struct{}
 
-func (_ *js) Name() string                 { return "JavaScript (Node.js)" }
-func (_ *js) SourceExtension() string      { return ".js" }
-func (_ *js) MimeType() string             { return "text/javascript" }
-func (_ *js) RequiresMultithreading() bool { return false }
-func (_ *js) UseMemoryLimit() bool         { return false }
-func (_ *js) CompilationCommand(sourceFilenames []string, executableFilename string) []string {
+func (*js) Name() string                 { return "JavaScript (Node.js)" }
+func (*js) SourceExtension() string      { return ".js" }
+func (*js) MimeType() string             { return "text/javascript" }
+func (*js) RequiresMultithreading() bool { return false }
+func (*js) UseMemoryLimit() bool         { return false }
+func (*js) CompilationCommand(sourceFilenames []string, executableFilename string) []string {
 	return nil
 }
-func (_ *js) CopyExtraFiles(location string) error { return nil }
-func (_ *js) EvaluationCommand(executableFilename string, args []string, memoryLimit int) []string {
+func (*js) CopyExtraFiles(location string) error { return nil }
+func (*js) EvaluationCommand(executableFilename string, args []string, memoryLimit int) []string {
 	path, _ := exec.LookPath("node")
 	return append([]string{path, "--max-old-space-size=" + strconv.Itoa(memoryLimit>>10), executableFilename + ".js"}, args...)
 }
