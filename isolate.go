@@ -62,6 +62,8 @@ const (
 	STATUS_ERR
 )
 
+// BoxResult stores information related to a single execution inside a sandbox
+// instance.
 type BoxResult struct {
 	// CPUTime usage
 	CPUTime time.Duration
@@ -85,6 +87,7 @@ type BoxResult struct {
 	ExitCode int
 }
 
+// Box stores information representing a single sandbox instance.
 type Box struct {
 	// When running multiple boxes, each should have their own id
 	ID int
@@ -96,6 +99,8 @@ type Box struct {
 	BoxImg string
 }
 
+// BoxConfig represents the parameters used in a single execution at the
+// Sandbox. A BoxConfig struct should not be reused in another execution.
 type BoxConfig struct {
 	// Executable path
 	Path string
@@ -138,6 +143,8 @@ type BoxConfig struct {
 	errch           chan error // one send per goroutine
 }
 
+// Sandbox is used to initialize an instance of the Sandbox corresponding to
+// the indicated id, returning a Box object representing such instance.
 func Sandbox(id int) (*Box, error) {
 	if id < 0 || id >= BOX_NUM_LIMIT {
 		return nil, fmt.Errorf("Invalid box number: %d", id)
@@ -209,6 +216,8 @@ func Sandbox(id int) (*Box, error) {
 	return b, nil
 }
 
+// Clear should be called once the Sandbox is done being used, typically at
+// the end of the whole program execution.
 func (b *Box) Clear() {
 	if len(b.BoxPath) > 0 {
 		exec.Command("umount", filepath.Join(b.BoxPath, "box")).Run()
@@ -217,6 +226,10 @@ func (b *Box) Clear() {
 	}
 }
 
+// Run is used to make an atomic execution of a program. It receives a
+// BoxConfig file as argument, which should be used only once and indicates
+// all the execution configurate. It returns a BoxResult object representing
+// the result of the program execution.
 func (b *Box) Run(c *BoxConfig) *BoxResult {
 	c.result = &BoxResult{}
 
@@ -415,6 +428,9 @@ func (c *BoxConfig) updateResult(rusage *unix.Rusage) {
 	}
 }
 
+// runParent is the main function used inside the parent process. Everything in
+// the parent process after the fork happens here. It is mainly responsible
+// for watching and killing the child process.
 func (c *BoxConfig) runParent() error {
 	c.startTime = time.Now()
 
@@ -493,6 +509,8 @@ func (c *BoxConfig) runParent() error {
 	return nil
 }
 
+// setupRoot is used to configure the folder where the program will run. It
+// should be called inside the child process, before executing the program.
 func (c *BoxConfig) setupRoot() error {
 	if err := os.Chdir(c.boxPath); err != nil {
 		return err
@@ -575,6 +593,8 @@ func (c *BoxConfig) setupRoot() error {
 	return nil
 }
 
+// setupRlimits is used to configure Rlimits inside the child process. It
+// should run inside the child process, before executing the program.
 func (c *BoxConfig) setupRlimits() error {
 	if c.MemoryLimit != 0 {
 		memlimit := uint64(c.MemoryLimit) << 10
@@ -604,6 +624,8 @@ func (c *BoxConfig) setupRlimits() error {
 	return nil
 }
 
+// setupCredentials is used to configure permissions in the child process. It
+// should be called inside the child process, before executing the program.
 func (c *BoxConfig) setupCredentials() error {
 	if err := unix.Setresgid(c.boxGID, c.boxGID, c.boxGID); err != nil {
 		return err
@@ -624,6 +646,9 @@ func (c *BoxConfig) setupCredentials() error {
 	return nil
 }
 
+// setupFds is used to configure the file descriptors used in the child process.
+// It will close some of the open ones, and redirect (duplicate) others.
+// It should be called inside the child process, before executing the program.
 func (c *BoxConfig) setupFds() error {
 	var lastfd int = 0
 	for _, f := range c.childFiles {
@@ -658,6 +683,9 @@ func (c *BoxConfig) setupFds() error {
 	return nil
 }
 
+// runChild is the main function used inside the child process. Everything in
+// the child process happens from here. It is mainly responsible for
+// configuring the environment and executing the program.
 func (c *BoxConfig) runChild() int {
 	if c.EnableCgroups {
 		if err := c.control.Add(cgroups.Process{Pid: os.Getpid()}); err != nil {
