@@ -19,8 +19,8 @@ clean:
 static:
 	node_modules/.bin/gulp static:build
 
-.PHONY: generate
-generate:
+.PHONY: generate-docs
+generate-docs:
 	@hash rice > /dev/null 2>&1; if [ $$? -ne 0 ]; then \
 		go get -u github.com/GeertJohan/go.rice; \
 	fi
@@ -35,7 +35,7 @@ build:
 	go build .
 
 .PHONY: release
-release: release-static generate release-dirs release-build
+release: release-static generate-docs release-dirs release-build
 
 .PHONY: release-dirs
 release-dirs:
@@ -123,4 +123,3 @@ reference:
 	zip -9 -rq ../reference.zip info.json java c_cpp pascal python2 python3 javascript
 
 	rm -r info.json java c_cpp pascal python2 python3 javascript
-
