@@ -18,8 +18,8 @@ clean:
 static:
 	node_modules/.bin/gulp static:build
 
-.PHONY: generate-docs
-generate-docs:
+.PHONY: generate-statics-sources
+generate-statics-sources:
 	@hash rice > /dev/null 2>&1; if [ $$? -ne 0 ]; then \
 		go get -u github.com/GeertJohan/go.rice; \
 	fi
@@ -33,29 +33,11 @@ install: $(wildcard *.go)
 build:
 	go build .
 
-.PHONY: release
-release: release-static generate-docs release-dirs release-build
-
-.PHONY: release-dirs
-release-dirs:
-	mkdir -p $(DIST)
-
-.PHONY: release-static
-release-static:
-	NODE_ENV=production node_modules/.bin/gulp static:build
-
-.PHONY: release-build
-release-build:
-	@hash xgo > /dev/null 2>&1; if [ $$? -ne 0 ]; then \
-		$(GO) get -u github.com/karalabe/xgo; \
-	fi
-	xgo -dest $(DIST) -tags 'netgo $(TAGS)' -ldflags '-linkmode external -extldflags "-static" $(LDFLAGS)' -targets 'linux/386,linux/amd64' -out OBIJudge-$(VERSION) .
-
-JAVA_SOURCE := "http://ftp.us.debian.org/debian/pool/main/o/openjdk-8/openjdk-8-doc_8u162-b12-1_all.deb"
+JAVA_SOURCE := "http://ftp.us.debian.org/debian/pool/main/o/openjdk-8/openjdk-8-doc_8u181-b13-1_all.deb"
 C_CPP_SOURCE := "http://upload.cppreference.com/mwiki/images/1/1d/html_book_20180311.tar.xz"
 PASCAL_SOURCE := "https://downloads.sourceforge.net/project/freepascal/Documentation/3.0.4/doc-html.tar.gz"
-PYTHON_2_SOURCE := "https://www.python.org/ftp/python/2.7.14/python2714.chm"
-PYTHON_3_SOURCE := "https://www.python.org/ftp/python/3.6.5/python365.chm"
+PYTHON_2_SOURCE := "https://www.python.org/ftp/python/2.7.15/python2715.chm"
+PYTHON_3_SOURCE := "https://www.python.org/ftp/python/3.7.0/python370.chm"
 JS_SOURCE := "https://github.com/agibsonsw/AndySublime/blob/master/LanguageHelp/javascript.chm?raw=true"
 
 define writeInfo
