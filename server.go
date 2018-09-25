@@ -23,6 +23,7 @@ const (
 	localeCookieName = "obijudge-locale"
 )
 
+// Server stores information related to a single http server instance.
 type Server struct {
 	Port          int
 	DatabasePath  string
@@ -36,6 +37,7 @@ type Server struct {
 	server         *http.Server
 }
 
+// Start initializes a server instance, listening at the specified port.
 func (srv *Server) Start() error {
 	// setup session storage
 	if testingFlag {
@@ -118,6 +120,8 @@ func (srv *Server) Start() error {
 	return nil
 }
 
+// Stop is used to end of execution of a server instance. Typically, it should
+// be called at the end of program execution.
 func (srv *Server) Stop() {
 	if err := srv.server.Shutdown(nil); err != nil {
 		panic(err)

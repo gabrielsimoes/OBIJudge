@@ -14,12 +14,12 @@ import (
 )
 
 var (
-	appName                = "obijudge"
-	appVersion      string = "testing"
-	appBuild        string = "testing"
-	appInfo                = "Created by Gabriel Simões (simoes.sgabriel@gmail.com)"
-	appHelp                = "Usage: %s run OR builddb OR info\nAppend -h or --help to display general or subcommand usage\n"
-	appErrorMessage        = "[OBIJUDGE] "
+	appName         = "obijudge"
+	appVersion      = "testing"
+	appBuild        = "testing"
+	appInfo         = "Created by Gabriel Simões (simoes.sgabriel@gmail.com)"
+	appHelp         = "Usage: %s run OR builddb OR info\nAppend -h or --help to display general or subcommand usage\n"
+	appErrorMessage = "[OBIJUDGE] "
 
 	testingFlag bool
 )

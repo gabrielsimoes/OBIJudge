@@ -10,6 +10,8 @@ import (
 	"github.com/gorilla/securecookie"
 )
 
+// SessionManager stores information related to a single instance of the
+// session cookies manager used by the whole program.
 type SessionManager struct {
 	cookieName         string
 	sessions           map[string]*Session
@@ -20,6 +22,7 @@ type SessionManager struct {
 	lock               sync.Mutex
 }
 
+// Session stores information related to a single user session.
 type Session struct {
 	sid          string
 	password     []byte
@@ -30,11 +33,13 @@ type Session struct {
 	lock         sync.Mutex
 }
 
+// CodeInfo is used to share information between Go and Javascript.
 type CodeInfo struct {
 	Code string
 	Lang int
 }
 
+// NewSessionManager acts as a constructor and initializes a new session manager.
 func NewSessionManager(taskVerdictChannel <-chan TaskVerdict, testVerdictChannel <-chan CustomTestVerdict, cookieName string) *SessionManager {
 	var hashKey, blockKey []byte
 	if testingFlag {
