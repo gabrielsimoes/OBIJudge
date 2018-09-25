@@ -1,6 +1,6 @@
 # OBIJudge
 
-OBIJudge is programming competitions judge designed to be run in the competitor's
+OBIJudge is a programming competitions judge designed to be run in the competitor's
 machine. It features a sandboxing method based on IOI's [isolate](https://github.com/ioi/isolate),
 using Linux's Cgroups, and therefore needs root permissions to work.
 
@@ -19,7 +19,7 @@ make reference # if you want to be able to access programming language reference
 make build
 ```
 
-A binary will be created in the folder. Usage instructions below will assume
+A binary will be created in the folder. Usage instructions below assume
 this binary is called `OBIJudge`.
 
 ## Usage instructions
@@ -27,13 +27,13 @@ this binary is called `OBIJudge`.
 OBIJudge is programmed to run program executions on the `/obijudge` folder of your
 system. Make sure that such folder is not used for other things.
 
-Use `./OBIJudge builddb` to build a `.zip` file containing the contest data
-and view usage instructions using `./OBIJudge builddb -h`.
+Use `./OBIJudge builddb` to build a `.zip` file containing the contest data.
+Usage instructions are available by calling `./OBIJudge builddb -h`.
 
 Use `./OBIJudge run` to run an http server and run the contest. Usage
 instructions are available by calling `./OBIJudge run -h`.
 
-To build the sample contest database and run the web interface, run:
+To build the sample contest database and run the web interface:
 
 ```bash
 ./OBIJudge builddb
