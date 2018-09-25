@@ -122,8 +122,8 @@ type BoxConfig struct {
 	MaxProcesses int
 
 	boxPath   string
-	boxUid    int
-	boxGid    int
+	boxUID    int
+	boxGID    int
 	control   cgroups.Cgroup
 	parentPid int
 	childPid  int
@@ -199,9 +199,9 @@ func Sandbox(id int) (*Box, error) {
 		return nil, errors.New(err.Error() + " - " + string(output))
 	}
 
-	origUid := os.Getuid()
-	origGid := os.Getgid()
-	if err := os.Chown(filepath.Join(b.BoxPath, "box"), origUid, origGid); err != nil {
+	origUID := os.Getuid()
+	origGID := os.Getgid()
+	if err := os.Chown(filepath.Join(b.BoxPath, "box"), origUID, origGID); err != nil {
 		b.Clear()
 		return nil, err
 	}
@@ -244,8 +244,8 @@ func (b *Box) Run(c *BoxConfig) *BoxResult {
 		}
 	}
 
-	c.boxUid = BOX_FIRST_UID + b.ID
-	c.boxGid = BOX_FIRST_GID + b.ID
+	c.boxUID = BOX_FIRST_UID + b.ID
+	c.boxGID = BOX_FIRST_GID + b.ID
 	c.boxPath = b.BoxPath
 
 	if c.EnableCgroups {
@@ -276,7 +276,7 @@ func (b *Box) Run(c *BoxConfig) *BoxResult {
 
 	if err := filepath.Walk(filepath.Join(c.boxPath, "box"), func(name string, info os.FileInfo, err error) error {
 		if err == nil {
-			err = os.Chown(name, c.boxUid, c.boxGid)
+			err = os.Chown(name, c.boxUID, c.boxGID)
 		}
 		return err
 	}); err != nil {
@@ -605,7 +605,7 @@ func (c *BoxConfig) setupRlimits() error {
 }
 
 func (c *BoxConfig) setupCredentials() error {
-	if err := unix.Setresgid(c.boxGid, c.boxGid, c.boxGid); err != nil {
+	if err := unix.Setresgid(c.boxGID, c.boxGID, c.boxGID); err != nil {
 		return err
 	}
 
@@ -613,7 +613,7 @@ func (c *BoxConfig) setupCredentials() error {
 		return err
 	}
 
-	if err := unix.Setresuid(c.boxUid, c.boxUid, c.boxUid); err != nil {
+	if err := unix.Setresuid(c.boxUID, c.boxUID, c.boxUID); err != nil {
 		return err
 	}
 
