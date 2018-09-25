@@ -238,12 +238,12 @@ func (db *Database) Task(name string) (TaskData, error) {
 	return TaskData{}, errors.New("No task named " + name)
 }
 
-// Statament returns a single StatementData corresponding to the statement of
+// Statement returns a single StatementData corresponding to the statement of
 // the task with the specified name, stored inside the database.
 func (db *Database) Statement(name string, key []byte) (StatementData, error) {
 	statement := StatementData{}
 
-	var err error = nil
+	var err error
 	pdfFile := db.filterFile("/" + name + "/statements/statement.pdf")
 	if pdfFile != nil {
 		statement.PDF, err = db.readSecure(pdfFile, key)
@@ -268,7 +268,8 @@ func (db *Database) Statement(name string, key []byte) (StatementData, error) {
 func (db *Database) Tests(name string, key []byte) ([]TestData, error) {
 	testFiles := db.filterFolder("/" + name + "/tests/")
 	tests := make([]TestData, len(testFiles)/2)
-	var err error = nil
+
+	var err error
 	for _, file := range testFiles {
 		info := strings.Split(filepath.Base(file.Name), ".")
 		if info[1] == "in" {

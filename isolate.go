@@ -29,26 +29,26 @@ import (
 import "C"
 
 const (
-	BOX_FIRST_UID = 60000
-	BOX_FIRST_GID = 60000
-	BOX_ROOT      = "/obibox"
-	BOX_NUM_LIMIT = 2
-	BOX_IMG_SIZE  = 10 << 20 // 10 MB
+	boxFirstUID  = 60000
+	boxFirstGID  = 60000
+	boxRoot      = "/obibox"
+	boxNumLimit  = 2
+	boxImageSize = 10 << 20 // 10 MB
 
-	ERR_CHILD_FAILED = 42
+	errChildFailed = 42
 )
 
 const (
-	DIR_FLAG_RW = 1 << iota
-	DIR_FLAG_NOEXEC
-	DIR_FLAG_OPT
-	DIR_FLAG_DEV
+	dirFlagRW = 1 << iota
+	dirFlagNoExec
+	dirFlagOptional
+	dirFlagDev
 )
 
 var (
-	TICKS_PER_SEC int           = int(C.sysconf(C._SC_CLK_TCK))
-	TICK          time.Duration = time.Second / time.Duration(TICKS_PER_SEC)
-	PAGE_SIZE     int           = unix.Getpagesize()
+	ticksPerSec  = int(C.sysconf(C._SC_CLK_TCK))
+	tickDuration = time.Second / time.Duration(ticksPerSec)
+	pageSize     = unix.Getpagesize()
 )
 
 // StatusCode is an integer indicating the outcome of a program execution
@@ -159,14 +159,14 @@ type BoxConfig struct {
 // Sandbox is used to initialize an instance of the Sandbox corresponding to
 // the indicated id, returning a Box object representing such instance.
 func Sandbox(id int) (*Box, error) {
-	if id < 0 || id >= BOX_NUM_LIMIT {
+	if id < 0 || id >= boxNumLimit {
 		return nil, fmt.Errorf("Invalid box number: %d", id)
 	}
 
 	b := &Box{
 		ID:      id,
-		BoxPath: filepath.Join(BOX_ROOT, strconv.Itoa(id)),
-		BoxImg:  filepath.Join(BOX_ROOT, strconv.Itoa(id)+".img"),
+		BoxPath: filepath.Join(boxRoot, strconv.Itoa(id)),
+		BoxImg:  filepath.Join(boxRoot, strconv.Itoa(id)+".img"),
 	}
 
 	if os.Geteuid() != 0 {
@@ -182,7 +182,7 @@ func Sandbox(id int) (*Box, error) {
 	os.RemoveAll(b.BoxPath)
 	os.RemoveAll(b.BoxImg)
 
-	if err := os.MkdirAll(BOX_ROOT, 0777); err != nil {
+	if err := os.MkdirAll(boxRoot, 0777); err != nil {
 		return nil, err
 	}
 
@@ -191,7 +191,7 @@ func Sandbox(id int) (*Box, error) {
 		return nil, err
 	}
 
-	if err := img.Truncate(BOX_IMG_SIZE); err != nil {
+	if err := img.Truncate(boxImageSize); err != nil {
 		b.Clear()
 		return nil, err
 	}
@@ -270,8 +270,8 @@ func (b *Box) Run(c *BoxConfig) *BoxResult {
 		}
 	}
 
-	c.boxUID = BOX_FIRST_UID + b.ID
-	c.boxGID = BOX_FIRST_GID + b.ID
+	c.boxUID = boxFirstUID + b.ID
+	c.boxGID = boxFirstGID + b.ID
 	c.boxPath = b.BoxPath
 
 	if c.EnableCgroups {
@@ -355,45 +355,45 @@ func (b *Box) Run(c *BoxConfig) *BoxResult {
 		errCode := c.runChild()
 		c.errorPipe.Write([]byte{byte(errCode)})
 		c.errorPipe.Close()
-		os.Exit(ERR_CHILD_FAILED)
+		os.Exit(errChildFailed)
 		return nil
-	} else {
-		syscall.ForkLock.Unlock()
-		c.childPid = int(r1)
-
-		epw.Close()
-		c.errorPipe = epr
-		c.closeDescriptors(c.closeAfterStart)
-
-		c.errch = make(chan error, len(c.goroutine))
-		for _, fn := range c.goroutine {
-			go func(fn func() error) {
-				c.errch <- fn()
-			}(fn)
-		}
-
-		err := c.runParent()
-
-		var copyError error
-		for range c.goroutine {
-			if err := <-c.errch; err != nil && copyError == nil {
-				copyError = err
-			}
-		}
-
-		c.errorPipe.Close()
-		c.closeDescriptors(c.closeAfterWait)
-
-		if err != nil {
-			c.result.Status = StatusError
-			c.result.Error = err.Error()
-		} else if copyError != nil {
-			c.result.Status = StatusError
-			c.result.Error = copyError.Error()
-		}
-
-		return c.result
 	}
+
+	syscall.ForkLock.Unlock()
+	c.childPid = int(r1)
+
+	epw.Close()
+	c.errorPipe = epr
+	c.closeDescriptors(c.closeAfterStart)
+
+	c.errch = make(chan error, len(c.goroutine))
+	for _, fn := range c.goroutine {
+		go func(fn func() error) {
+			c.errch <- fn()
+		}(fn)
+	}
+
+	err = c.runParent()
+
+	var copyError error
+	for range c.goroutine {
+		if err := <-c.errch; err != nil && copyError == nil {
+			copyError = err
+		}
+	}
+
+	c.errorPipe.Close()
+	c.closeDescriptors(c.closeAfterWait)
+
+	if err != nil {
+		c.result.Status = StatusError
+		c.result.Error = err.Error()
+	} else if copyError != nil {
+		c.result.Status = StatusError
+		c.result.Error = copyError.Error()
+	}
+
+	return c.result
 }
 
 func (c *BoxConfig) end(err error) error {
@@ -433,10 +433,10 @@ func (c *BoxConfig) updateResult(rusage *unix.Rusage) {
 			parsed := strings.Split(string(bs), " ")
 			stime, _ := strconv.ParseInt(parsed[13], 10, 64)
 			utime, _ := strconv.ParseInt(parsed[14], 10, 64)
-			c.result.CPUTime = (time.Second * time.Duration(utime+stime)) / time.Duration(TICKS_PER_SEC)
+			c.result.CPUTime = (time.Second * time.Duration(utime+stime)) / time.Duration(ticksPerSec)
 
 			rss, _ := strconv.ParseInt(parsed[23], 10, 64)
-			c.result.Memory = (rss * int64(PAGE_SIZE)) >> 10
+			c.result.Memory = (rss * int64(pageSize)) >> 10
 		}
 	}
 }
@@ -471,14 +471,14 @@ func (c *BoxConfig) runParent() error {
 		waitch <- result
 	}()
 
-	ticker := time.NewTicker(TICK)
+	ticker := time.NewTicker(tickDuration)
 	for range ticker.C {
 		select {
 		case result := <-waitch:
 			c.updateResult(&result.rusage)
 
 			if result.stat.Exited() {
-				if result.stat.ExitStatus() == ERR_CHILD_FAILED {
+				if result.stat.ExitStatus() == errChildFailed {
 					errorBytes, err := ioutil.ReadAll(c.errorPipe)
 					if err != nil {
 						return err
@@ -499,7 +499,7 @@ func (c *BoxConfig) runParent() error {
 				c.result.Status = StatusSig
 				return nil
 			} else {
-				return c.end(fmt.Errorf("Wait4: Unknown status %+v!", result.stat))
+				return c.end(fmt.Errorf("Wait4: Unknown status %+v", result.stat))
 			}
 
 		case err := <-waiterrch:
@@ -551,17 +551,17 @@ func (c *BoxConfig) setupRoot() error {
 		out   string
 		flags int
 	}{
-		{"box", "./box", DIR_FLAG_RW},
+		{"box", "./box", dirFlagRW},
 		{"bin", "/bin", 0},
-		{"dev", "/dev", DIR_FLAG_DEV},
+		{"dev", "/dev", dirFlagDev},
 		{"lib", "/lib", 0},
-		{"lib64", "/lib64", DIR_FLAG_OPT},
+		{"lib64", "/lib64", dirFlagOptional},
 		{"proc", "/proc", 0},
 		{"usr", "/usr", 0},
 		{"etc", "/etc", 0},
 	} {
 		if testDir(rule.out) != nil {
-			if rule.flags&DIR_FLAG_OPT != 0 {
+			if rule.flags&dirFlagOptional != 0 {
 				continue
 			}
 
@@ -572,14 +572,14 @@ func (c *BoxConfig) setupRoot() error {
 			return err
 		}
 
-		var mountFlags uintptr = 0
-		if rule.flags&DIR_FLAG_RW == 0 {
+		var mountFlags uintptr
+		if rule.flags&dirFlagRW == 0 {
 			mountFlags |= unix.MS_RDONLY
 		}
-		if rule.flags&DIR_FLAG_NOEXEC != 0 {
+		if rule.flags&dirFlagNoExec != 0 {
 			mountFlags |= unix.MS_NOEXEC
 		}
-		if rule.flags&DIR_FLAG_DEV == 0 {
+		if rule.flags&dirFlagDev == 0 {
 			mountFlags |= unix.MS_NODEV
 		}
 
@@ -663,7 +663,7 @@ func (c *BoxConfig) setupCredentials() error {
 // It will close some of the open ones, and redirect (duplicate) others.
 // It should be called inside the child process, before executing the program.
 func (c *BoxConfig) setupFds() error {
-	var lastfd int = 0
+	var lastfd int
 	for _, f := range c.childFiles {
 		if int(c.errorPipe.Fd()) == lastfd {
 			lastfd++
@@ -738,7 +738,7 @@ func testDir(dir string) error {
 	}
 
 	if !info.IsDir() {
-		return fmt.Errorf("testDir: %s should be a directory.", dir)
+		return fmt.Errorf("testDir: %s should be a directory", dir)
 	}
 
 	return nil
