@@ -263,16 +263,16 @@ func (w *judgeWorker) compile(box *Box, compilationCommand []string) (bool, int,
 		fmt.Printf("Compilation: %+v %s\n", result, string(output))
 	}
 
-	if result.Status == STATUS_ERR {
+	if result.Status == StatusError {
 		return false, 0, result.Error
 	} else {
-		if result.Status == STATUS_WTL || result.Status == STATUS_CTL {
+		if result.Status == StatusWTL || result.Status == StatusCTL {
 			return true, ResultCompTimeout, ""
-		} else if result.Status == STATUS_SIG {
+		} else if result.Status == StatusSig {
 			return true, ResultCompSignal, result.Signal.String()
-		} else if result.Status == STATUS_EXT {
+		} else if result.Status == StatusExit {
 			return true, ResultCompFailed, "Exit Code: " + strconv.Itoa(result.ExitCode) + "\n" + string(output)
-		} else if result.Status == STATUS_OK {
+		} else if result.Status == StatusOK {
 			return true, ResultCompSuccess, ""
 		}
 	}
@@ -367,21 +367,21 @@ func (w *judgeWorker) judge(s Submission) TaskVerdict {
 					fmt.Printf("Test %d: %+v\n", i, result)
 				}
 
-				if result.Status == STATUS_ERR {
+				if result.Status == StatusError {
 					return TaskVerdict{Error: true, Extra: result.Error}
 				} else {
 					results[i].time = result.CPUTime
 					results[i].memory = result.Memory
 
-					if result.Status == STATUS_WTL || result.Status == STATUS_CTL {
+					if result.Status == StatusWTL || result.Status == StatusCTL {
 						results[i].code = ResultTimeout
-					} else if result.Status == STATUS_SIG {
+					} else if result.Status == StatusSig {
 						results[i].code = ResultSignal
 						results[i].extra = result.Signal.String()
-					} else if result.Status == STATUS_EXT {
+					} else if result.Status == StatusExit {
 						results[i].code = ResultFailed
 						results[i].extra = "Exit Code: " + strconv.Itoa(result.ExitCode)
-					} else if result.Status == STATUS_OK {
+					} else if result.Status == StatusOK {
 						results[i].code = ResultCorrect
 					}
 				}
@@ -472,22 +472,22 @@ func (w *judgeWorker) test(t CustomTest) CustomTestVerdict {
 		ret.Output = string(output)
 	}
 
-	if result.Status == STATUS_ERR {
+	if result.Status == StatusError {
 		return CustomTestVerdict{Error: true, Extra: result.Error}
 	}
 
 	ret.Time = result.CPUTime
 	ret.Memory = result.Memory
 
-	if result.Status == STATUS_WTL || result.Status == STATUS_CTL {
+	if result.Status == StatusWTL || result.Status == StatusCTL {
 		ret.Result = ResultTimeout
-	} else if result.Status == STATUS_SIG {
+	} else if result.Status == StatusSig {
 		ret.Result = ResultSignal
 		ret.Extra = result.Signal.String()
-	} else if result.Status == STATUS_EXT {
+	} else if result.Status == StatusExit {
 		ret.Result = ResultFailed
 		ret.Extra = "Exit Code: " + strconv.Itoa(result.ExitCode)
-	} else if result.Status == STATUS_OK {
+	} else if result.Status == StatusOK {
 		ret.Result = ResultCorrect
 	}
 

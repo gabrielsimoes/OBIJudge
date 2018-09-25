@@ -51,15 +51,28 @@ var (
 	PAGE_SIZE     int           = unix.Getpagesize()
 )
 
+// StatusCode is an integer indicating the outcome of a program execution
+// inside a sandbox instance.
 type StatusCode int
 
 const (
-	STATUS_OK StatusCode = iota
-	STATUS_WTL
-	STATUS_CTL
-	STATUS_SIG
-	STATUS_EXT
-	STATUS_ERR
+	// StatusOK means the execution was completely successful.
+	StatusOK StatusCode = iota
+
+	// StatusWTL means the Wall Time Limit was exceeded.
+	StatusWTL
+
+	// StatusCTL means the CPU Time Limit was exceeded.
+	StatusCTL
+
+	// StatusSig means the program has been signaled or killed.
+	StatusSig
+
+	// StatusExit means the program exited with an error code.
+	StatusExit
+
+	// StatusError means an error has occurred in the sandbox.
+	StatusError
 )
 
 // BoxResult stores information related to a single execution inside a sandbox
@@ -234,13 +247,13 @@ func (b *Box) Run(c *BoxConfig) *BoxResult {
 	c.result = &BoxResult{}
 
 	if os.Geteuid() != 0 {
-		c.result.Status = STATUS_ERR
+		c.result.Status = StatusError
 		c.result.Error = "Must be run as root"
 		return c.result
 	}
 
 	if os.Getegid() != 0 {
-		c.result.Status = STATUS_ERR
+		c.result.Status = StatusError
 		c.result.Error = "Must be run as root group"
 		return c.result
 	}
@@ -250,7 +263,7 @@ func (b *Box) Run(c *BoxConfig) *BoxResult {
 	if c.EnableCgroups {
 		for _, dir := range []string{"", "memory", "cpuacct", "cpuset"} {
 			if err := testDir(filepath.Join("/sys/fs/cgroup", dir)); err != nil {
-				c.result.Status = STATUS_ERR
+				c.result.Status = StatusError
 				c.result.Error = "Can't support cgroups: " + err.Error()
 				return c.result
 			}
@@ -265,7 +278,7 @@ func (b *Box) Run(c *BoxConfig) *BoxResult {
 		var err error
 		c.control, err = cgroups.New(cgroups.V1, cgroups.StaticPath(fmt.Sprintf("box-%d-%d", b.ID, rand.Intn(1))), &specs.LinuxResources{})
 		if err != nil {
-			c.result.Status = STATUS_ERR
+			c.result.Status = StatusError
 			c.result.Error = err.Error()
 			return c.result
 		}
@@ -280,7 +293,7 @@ func (b *Box) Run(c *BoxConfig) *BoxResult {
 				},
 			})
 			if err != nil {
-				c.result.Status = STATUS_ERR
+				c.result.Status = StatusError
 				c.result.Error = err.Error()
 				return c.result
 			}
@@ -293,7 +306,7 @@ func (b *Box) Run(c *BoxConfig) *BoxResult {
 		}
 		return err
 	}); err != nil {
-		c.result.Status = STATUS_ERR
+		c.result.Status = StatusError
 		c.result.Error = err.Error()
 		return c.result
 	}
@@ -304,7 +317,7 @@ func (b *Box) Run(c *BoxConfig) *BoxResult {
 		if err != nil {
 			c.closeDescriptors(c.closeAfterStart)
 			c.closeDescriptors(c.closeAfterWait)
-			c.result.Status = STATUS_ERR
+			c.result.Status = StatusError
 			c.result.Error = err.Error()
 			return c.result
 		}
@@ -315,7 +328,7 @@ func (b *Box) Run(c *BoxConfig) *BoxResult {
 	if err != nil {
 		c.closeDescriptors(c.closeAfterStart)
 		c.closeDescriptors(c.closeAfterWait)
-		c.result.Status = STATUS_ERR
+		c.result.Status = StatusError
 		c.result.Error = err.Error()
 		return c.result
 	}
@@ -330,7 +343,7 @@ func (b *Box) Run(c *BoxConfig) *BoxResult {
 	if err1 != 0 {
 		c.closeDescriptors(c.closeAfterStart)
 		c.closeDescriptors(c.closeAfterWait)
-		c.result.Status = STATUS_ERR
+		c.result.Status = StatusError
 		c.result.Error = "Clone failed: " + err1.Error()
 		return c.result
 	}
@@ -372,10 +385,10 @@ func (b *Box) Run(c *BoxConfig) *BoxResult {
 		c.closeDescriptors(c.closeAfterWait)
 
 		if err != nil {
-			c.result.Status = STATUS_ERR
+			c.result.Status = StatusError
 			c.result.Error = err.Error()
 		} else if copyError != nil {
-			c.result.Status = STATUS_ERR
+			c.result.Status = StatusError
 			c.result.Error = copyError.Error()
 		}
 
@@ -474,16 +487,16 @@ func (c *BoxConfig) runParent() error {
 				}
 				c.result.ExitCode = result.stat.ExitStatus()
 				if c.result.ExitCode != 0 {
-					c.result.Status = STATUS_EXT
+					c.result.Status = StatusExit
 				}
 				return nil
 			} else if result.stat.Signaled() {
 				c.result.Signal = result.stat.Signal()
-				c.result.Status = STATUS_SIG
+				c.result.Status = StatusSig
 				return nil
 			} else if result.stat.Stopped() {
 				c.result.Signal = result.stat.StopSignal()
-				c.result.Status = STATUS_SIG
+				c.result.Status = StatusSig
 				return nil
 			} else {
 				return c.end(fmt.Errorf("Wait4: Unknown status %+v!", result.stat))
@@ -495,12 +508,12 @@ func (c *BoxConfig) runParent() error {
 		default:
 			c.updateResult(nil)
 			if c.WallTimeLimit != 0 && c.result.WallTime > c.WallTimeLimit {
-				c.result.Status = STATUS_WTL
+				c.result.Status = StatusWTL
 				return c.end(nil)
 			}
 
 			if c.CPUTimeLimit != 0 && c.result.CPUTime > c.CPUTimeLimit {
-				c.result.Status = STATUS_CTL
+				c.result.Status = StatusCTL
 				return c.end(nil)
 			}
 		}
