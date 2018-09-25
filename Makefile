@@ -4,7 +4,6 @@ SOURCES := $(shell find . -type f -name '*.go')
 VERSION := 0.1
 BUILD := `git describe --tags --always | sed 's/-/+/' | sed 's/^v//'`
 LDFLAGS := -X "main.appVersion=$(VERSION)" -X "main.appBuild=$(BUILD)"
-GOFLAGS := -i -v
 
 .PHONY: all
 all: build
