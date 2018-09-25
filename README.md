@@ -1,34 +1,44 @@
-mathjax was cleaned with
-https://github.com/mathjax/MathJax-grunt-cleaner
-https://github.com/mathjax/MathJax-grunt-cleaner/issues/11
+# OBIJudge
 
-Para compilar (só no linux):
-`go get .`
-`go build .`
+OBIJudge is programming competitions judge designed to be run in the competitor's
+machine. It features a sandboxing method based on IOI's [isolate](https://github.com/ioi/isolate),
+using Linux's Cgroups, and therefore needs root permissions to work.
 
-Para criar um contest:
-`./OBIJudge builddb -h`
+![Screenshot](screenshot.png)
 
-Para rodar o servidor:
-`./OBIJudge run -h`
+## Installation instructions
 
-# Windows Compiler/Interpreter Binaries:
-## C/C++
-https://sourceforge.net/projects/mingw-w64/files/
+You can simply clone the repository inside your `GOPATH` and run the following:
 
-## Python 2
-https://www.python.org/downloads/release/python-2714/
+```bash
+go get .
+yarn install
+make static
+make generate-statics-sources # if you want static assets to be bound to the binary
+make reference # if you want to be able to access programming language reference inside the web interface
+make build
+```
 
-## Python 3
-https://www.python.org/downloads/release/python-364/
+A binary will be created in the folder. Usage instructions below will assume
+this binary is called `OBIJudge`.
 
-## Java
-http://www.oracle.com/technetwork/java/javase/downloads/index.html
-https://github.com/Vinetos/java-portable
+## Usage instructions
 
-## Pascal
-http://sourceforge.net/projects/freepascal/files/Win32/3.0.4/
+OBIJudge is programmed to run program executions on the `/obijudge` folder of your
+system. Make sure that such folder is not used for other things.
 
-## JavaScript
-https://nodejs.org/en/download/
+Use `./OBIJudge builddb` to build a `.zip` file containing the contest data
+and view usage instructions using `./OBIJudge builddb -h`.
 
+Use `./OBIJudge run` to run an http server and run the contest. Usage
+instructions are available by calling `./OBIJudge run -h`.
+
+To build the sample contest database and run the web interface, run:
+
+```bash
+./OBIJudge builddb
+sudo ./OBIJudge run
+```
+
+Then access `localhost` in your web browser, and use the contest database
+file just created and the password used to access the contest.
